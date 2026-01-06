@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'pdfGenerate.dart';
 
 void main() => runApp(SmartBillingApp());
 
@@ -419,7 +420,7 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 }
-// --- 3. DASHBOARD MODULE ---
+// --- 3. DASHBOARD MODULE (UPDATED) ---
 class DashboardPage extends StatelessWidget {
   void _showSaleDetails(BuildContext context, Map<String, dynamic> sale) {
     List<dynamic> items = [];
@@ -429,6 +430,7 @@ class DashboardPage extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true, // Allows sheet to take more space
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Container(
         padding: EdgeInsets.all(20),
@@ -436,15 +438,28 @@ class DashboardPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Sale #${sale['id']} Details", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Sale #${sale['id']} Details", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                IconButton(icon: Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
             Divider(),
-            if (items.isEmpty) Text("No item details recorded for this sale."),
-            ...items.map((item) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(item['name']),
-              subtitle: Text("${item['qty']} x ${formatter.format(item['price'])}"),
-              trailing: Text(formatter.format(item['qty'] * item['price'])),
-            )).toList(),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  if (items.isEmpty) Text("No item details recorded."),
+                  ...items.map((item) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item['name']),
+                    subtitle: Text("${item['qty']} x ${formatter.format(item['price'])}"),
+                    trailing: Text(formatter.format(item['qty'] * item['price'])),
+                  )).toList(),
+                ],
+              ),
+            ),
             Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -454,6 +469,21 @@ class DashboardPage extends StatelessWidget {
               ],
             ),
             SizedBox(height: 20),
+
+            // --- PRINT BUTTON ---
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    padding: EdgeInsets.symmetric(vertical: 12)
+                ),
+                onPressed: () => PdfHelper.generateAndPrintReceipt(sale),
+                icon: Icon(Icons.picture_as_pdf, color: Colors.white),
+                label: Text("PRINT / SAVE RECEIPT", style: TextStyle(color: Colors.white)),
+              ),
+            ),
+            SizedBox(height: 10),
           ],
         ),
       ),
@@ -462,6 +492,7 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ... rest of your build method remains the same ...
     return Scaffold(
       appBar: AppBar(title: Text("Business Analytics")),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -482,7 +513,7 @@ class DashboardPage extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text("Tap a Sale ID to see items", style: TextStyle(color: Colors.grey)),
+                child: Text("Tap a Sale ID to see details & print", style: TextStyle(color: Colors.grey)),
               ),
               Expanded(
                 child: ListView.builder(
@@ -501,7 +532,7 @@ class DashboardPage extends StatelessWidget {
                             )
                         ),
                       ),
-                      subtitle: Text(sale['date'].toString().split('.')[0]), // Clean date format
+                      subtitle: Text(sale['date'].toString().split('.')[0]),
                       trailing: Text(formatter.format(sale['total']), style: TextStyle(fontWeight: FontWeight.bold)),
                     );
                   },
