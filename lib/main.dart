@@ -5,7 +5,7 @@ import 'package:path/path.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'pdfGenerate.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'revenueGraph.dart';
 
 void main() => runApp(SmartBillingApp());
 
@@ -737,72 +737,6 @@ class _DashboardPageState extends State<DashboardPage> {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class RevenueGraph extends StatelessWidget {
-  final List<Map<String, dynamic>> sales;
-  const RevenueGraph({required this.sales});
-
-  @override
-  Widget build(BuildContext context) {
-    List<FlSpot> spots = [];
-    var sortedSales = List<Map<String, dynamic>>.from(sales);
-    sortedSales.sort((a, b) => a['date'].compareTo(b['date']));
-
-    for (int i = 0; i < sortedSales.length; i++) {
-      spots.add(FlSpot(i.toDouble(), (sortedSales[i]['total'] as num).toDouble()));
-    }
-
-    return Container(
-      height: 200,
-      padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: LineChart(
-        LineChartData(
-          lineTouchData: LineTouchData(
-            getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
-              return spotIndexes.map((index) {
-                return TouchedSpotIndicatorData(
-                  FlLine(color: Colors.transparent),
-                  FlDotData(show: false),
-                );
-              }).toList();
-            },
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (touchedSpot) => Colors.white,
-              tooltipPadding: EdgeInsets.all(8),
-              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                return touchedBarSpots.map((barSpot) {
-                  return LineTooltipItem(
-                    formatter.format(barSpot.y),
-                    const TextStyle(
-                      color: Colors.indigo,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                }).toList();
-              },
-            ),
-          ),
-          gridData: FlGridData(show: false),
-          titlesData: FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: true,
-              color: Colors.indigo,
-              barWidth: 3,
-              dotData: FlDotData(show: true),
-              belowBarData: BarAreaData(
-                  show: true,
-                  color: Colors.indigo.withOpacity(0.1)
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
