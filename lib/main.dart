@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:intl/intl.dart';
@@ -76,8 +77,6 @@ class DBProvider {
       );
     }
   }
-
-  // FIXED: Added missing getSales method
   Future<List<Map<String, dynamic>>> getSales() async {
     final dbClient = await database;
     return await dbClient.query('sales', orderBy: 'id DESC');
@@ -130,7 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // --- 1. BILLING MODULE ---
-// FIXED: Converted to a proper StatefulWidget
 class BillingPage extends StatefulWidget {
   @override
   _BillingPageState createState() => _BillingPageState();
@@ -258,7 +256,7 @@ class _BillingPageState extends State<BillingPage> {
   }
 }
 
-// --- 2. INVENTORY MODULE (FIXED) ---
+// --- 2. INVENTORY MODULE ---
 class InventoryPage extends StatefulWidget {
   @override
   _InventoryPageState createState() => _InventoryPageState();
@@ -471,19 +469,43 @@ class DashboardPage extends StatelessWidget {
             SizedBox(height: 20),
 
             // --- PRINT BUTTON ---
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    padding: EdgeInsets.symmetric(vertical: 12)
+            Row(
+              children: [
+                // 1.Print Button
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        padding: EdgeInsets.symmetric(vertical: 12)
+                    ),
+                    onPressed: () => PdfHelper.generateAndPrintReceipt(sale),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.white),
+                    label: Text("PRINT", style: TextStyle(color: Colors.white)),
+                  ),
                 ),
-                onPressed: () => PdfHelper.generateAndPrintReceipt(sale),
-                icon: Icon(Icons.picture_as_pdf, color: Colors.white),
-                label: Text("PRINT / SAVE RECEIPT", style: TextStyle(color: Colors.white)),
-              ),
+                SizedBox(width: 10), // Space between buttons
+
+                // 2. New Share Button
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        padding: EdgeInsets.symmetric(vertical: 12)
+                    ),
+                    onPressed: () async {
+                      // Re-use PDF generation logic to get the bytes
+                      final pdfBytes = await PdfHelper.generateReceiptBytes(sale);
+                      await Printing.sharePdf(
+                          bytes: pdfBytes,
+                          filename: 'Receipt_${sale['id']}.pdf'
+                      );
+                    },
+                    icon: Icon(Icons.share, color: Colors.white),
+                    label: Text("SHARE", style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 10),
           ],
         ),
       ),
@@ -492,7 +514,6 @@ class DashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ... rest of your build method remains the same ...
     return Scaffold(
       appBar: AppBar(title: Text("Business Analytics")),
       body: FutureBuilder<List<Map<String, dynamic>>>(
