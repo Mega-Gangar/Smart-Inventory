@@ -5,13 +5,11 @@ import 'package:path/path.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'pdfGenerate.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 void main() => runApp(SmartBillingApp());
 
-final formatter = NumberFormat.currency(
-  locale: 'en_IN',
-  symbol: '₹',
-);
+final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
 
 class SmartBillingApp extends StatelessWidget {
   @override
@@ -34,22 +32,33 @@ class DBProvider {
 
   Future<Database> initDB() async {
     String path = join(await getDatabasesPath(), 'business.db');
-    return await openDatabase(path, version: 2, // Incremented version
-        onCreate: (db, version) async {
-          await db.execute('CREATE TABLE products(id INTEGER PRIMARY KEY, name TEXT, price REAL, stock INTEGER)');
-          // Added 'items' column
-          await db.execute('CREATE TABLE sales(id INTEGER PRIMARY KEY, total REAL, date TEXT, items TEXT)');
-        },
-        onUpgrade: (db, oldVersion, newVersion) async {
-          if (oldVersion < 2) {
-            await db.execute('ALTER TABLE sales ADD COLUMN items TEXT');
-          }
+    return await openDatabase(
+      path,
+      version: 2, // Incremented version
+      onCreate: (db, version) async {
+        await db.execute(
+          'CREATE TABLE products(id INTEGER PRIMARY KEY, name TEXT, price REAL, stock INTEGER)',
+        );
+        // Added 'items' column
+        await db.execute(
+          'CREATE TABLE sales(id INTEGER PRIMARY KEY, total REAL, date TEXT, items TEXT)',
+        );
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE sales ADD COLUMN items TEXT');
         }
+      },
     );
   }
+
   Future<void> addProduct(String name, double price, int stock) async {
     final dbClient = await database;
-    await dbClient.insert('products', {'name': name, 'price': price, 'stock': stock});
+    await dbClient.insert('products', {
+      'name': name,
+      'price': price,
+      'stock': stock,
+    });
   }
 
   Future<List<Map<String, dynamic>>> getProducts() async {
@@ -59,7 +68,10 @@ class DBProvider {
 
   Future<void> completeSale(List<Map<String, dynamic>> cartItems) async {
     final dbClient = await database;
-    double total = cartItems.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
+    double total = cartItems.fold(
+      0,
+      (sum, item) => sum + (item['price'] * item['qty']),
+    );
 
     // Convert list of items to a string to store in DB
     String itemsJson = jsonEncode(cartItems);
@@ -67,7 +79,7 @@ class DBProvider {
     await dbClient.insert('sales', {
       'total': total,
       'date': DateTime.now().toString(),
-      'items': itemsJson // Save the items here
+      'items': itemsJson, // Save the items here
     });
 
     for (var item in cartItems) {
@@ -77,11 +89,18 @@ class DBProvider {
       );
     }
   }
+
   Future<List<Map<String, dynamic>>> getSales() async {
     final dbClient = await database;
     return await dbClient.query('sales', orderBy: 'id DESC');
   }
-  Future<void> updateProduct(int id, String name, double price, int stock) async {
+
+  Future<void> updateProduct(
+    int id,
+    String name,
+    double price,
+    int stock,
+  ) async {
     final dbClient = await database;
     await dbClient.update(
       'products',
@@ -90,13 +109,10 @@ class DBProvider {
       whereArgs: [id],
     );
   }
+
   Future<void> deleteProduct(int id) async {
     final dbClient = await database;
-    await dbClient.delete(
-      'products',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await dbClient.delete('products', where: 'id = ?', whereArgs: [id]);
   }
 }
 
@@ -179,7 +195,8 @@ class _BillingPageState extends State<BillingPage> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: DBProvider.db.getProducts(),
               builder: (ctx, snapshot) {
-                if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData)
+                  return Center(child: CircularProgressIndicator());
                 return ListView.builder(
                   itemCount: snapshot.data!.length,
                   itemBuilder: (context, i) {
@@ -191,24 +208,40 @@ class _BillingPageState extends State<BillingPage> {
                     return Card(
                       margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       child: ListTile(
-                        title: Text(item['name'], style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text("Price: ${formatter.format(item['price'])} | Stock: $stock"),
+                        title: Text(
+                          item['name'],
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          "Price: ${formatter.format(item['price'])} | Stock: $stock",
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(Icons.remove_circle, color: Colors.redAccent),
+                              icon: Icon(
+                                Icons.remove_circle,
+                                color: Colors.redAccent,
+                              ),
                               onPressed: () => _updateCounter(id, -1, stock),
                             ),
-                            Text("$currentCount", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text(
+                              "$currentCount",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             IconButton(
                               icon: Icon(Icons.add_circle, color: Colors.green),
                               onPressed: () => _updateCounter(id, 1, stock),
                             ),
                             ElevatedButton(
-                              onPressed: currentCount > 0 ? () => _addToCart(item, context) : null,
+                              onPressed: currentCount > 0
+                                  ? () => _addToCart(item, context)
+                                  : null,
                               child: Text("Add"),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -226,30 +259,51 @@ class _BillingPageState extends State<BillingPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Cart Items: ${_cart.length}", style: TextStyle(fontSize: 16)),
-                    Text("Total: ${formatter.format(_total)}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                    Text(
+                      "Cart Items: ${_cart.length}",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Text(
+                      "Total: ${formatter.format(_total)}",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
+                      ),
+                    ),
                   ],
                 ),
                 SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(padding: EdgeInsets.symmetric(vertical: 15)),
-                    onPressed: _cart.isEmpty ? null : () async {
-                      await DBProvider.db.completeSale(_cart);
-                      setState(() {
-                        _cart = [];
-                        _total = 0;
-                        _itemCounters.clear();
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Sale Successfully Processed")));
-                    },
-                    child: Text("COMPLETE SALE", style: TextStyle(fontSize: 16)),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    onPressed: _cart.isEmpty
+                        ? null
+                        : () async {
+                            await DBProvider.db.completeSale(_cart);
+                            setState(() {
+                              _cart = [];
+                              _total = 0;
+                              _itemCounters.clear();
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Sale Successfully Processed"),
+                              ),
+                            );
+                          },
+                    child: Text(
+                      "COMPLETE SALE",
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ),
-                )
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -280,7 +334,9 @@ class _InventoryPageState extends State<InventoryPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text("Delete Product?"),
-        content: Text("Are you sure you want to remove '$name' from inventory?"),
+        content: Text(
+          "Are you sure you want to remove '$name' from inventory?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -303,7 +359,10 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
-  void _showProductDialog(BuildContext context, {Map<String, dynamic>? product}) {
+  void _showProductDialog(
+    BuildContext context, {
+    Map<String, dynamic>? product,
+  }) {
     bool isEditing = product != null;
     if (isEditing) {
       nameController.text = product['name'];
@@ -323,17 +382,32 @@ class _InventoryPageState extends State<InventoryPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameController, decoration: InputDecoration(labelText: "Product Name")),
-              TextField(controller: priceController, decoration: InputDecoration(labelText: "Price (₹)"), keyboardType: TextInputType.number),
-              TextField(controller: stockController, decoration: InputDecoration(labelText: "Stock Quantity"), keyboardType: TextInputType.number),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(labelText: "Product Name"),
+              ),
+              TextField(
+                controller: priceController,
+                decoration: InputDecoration(labelText: "Price (₹)"),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: stockController,
+                decoration: InputDecoration(labelText: "Stock Quantity"),
+                keyboardType: TextInputType.number,
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogCtx), child: Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text("Cancel"),
+          ),
           ElevatedButton(
             onPressed: () async {
-              if (nameController.text.isEmpty || priceController.text.isEmpty) return;
+              if (nameController.text.isEmpty || priceController.text.isEmpty)
+                return;
               if (isEditing) {
                 await DBProvider.db.updateProduct(
                   product!['id'],
@@ -352,7 +426,7 @@ class _InventoryPageState extends State<InventoryPage> {
               _refreshData();
             },
             child: Text("Save"),
-          )
+          ),
         ],
       ),
     );
@@ -362,19 +436,23 @@ class _InventoryPageState extends State<InventoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: Text("Inventory Management"),
-          actions: [IconButton(icon: Icon(Icons.refresh), onPressed: _refreshData)]
+        title: Text("Inventory Management"),
+        actions: [
+          IconButton(icon: Icon(Icons.refresh), onPressed: _refreshData),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-          onPressed: () => _showProductDialog(context),
-          child: Icon(Icons.add)
+        onPressed: () => _showProductDialog(context),
+        child: Icon(Icons.add),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         key: _refreshKey,
         future: DBProvider.db.getProducts(),
         builder: (ctx, snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-          if (snapshot.data!.isEmpty) return Center(child: Text("Stock is empty. Add products."));
+          if (!snapshot.hasData)
+            return Center(child: CircularProgressIndicator());
+          if (snapshot.data!.isEmpty)
+            return Center(child: Text("Stock is empty. Add products."));
 
           return ListView.builder(
             itemCount: snapshot.data!.length,
@@ -384,12 +462,21 @@ class _InventoryPageState extends State<InventoryPage> {
                 margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 child: ListTile(
                   // --- TRIGGER DELETION ON LONG PRESS ---
-                  onLongPress: () => _confirmDelete(context, p['id'], p['name']),
+                  onLongPress: () =>
+                      _confirmDelete(context, p['id'], p['name']),
                   leading: CircleAvatar(
-                    backgroundColor: p['stock'] < 5 ? Colors.red : Colors.indigo,
-                    child: Text("${p['stock']}", style: TextStyle(color: Colors.white)),
+                    backgroundColor: p['stock'] < 5
+                        ? Colors.red
+                        : Colors.indigo,
+                    child: Text(
+                      "${p['stock']}",
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
-                  title: Text(p['name'], style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    p['name'],
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text("${formatter.format(p['price'])}"),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -397,15 +484,25 @@ class _InventoryPageState extends State<InventoryPage> {
                       TextButton(
                         onPressed: () async {
                           await DBProvider.db.updateProduct(
-                            p['id'], p['name'], p['price'], p['stock'] + 5,
+                            p['id'],
+                            p['name'],
+                            p['price'],
+                            p['stock'] + 5,
                           );
                           _refreshData();
                         },
-                        child: Text("+5", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          "+5",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       IconButton(
                         icon: Icon(Icons.edit, color: Colors.indigo),
-                        onPressed: () => _showProductDialog(context, product: p),
+                        onPressed: () =>
+                            _showProductDialog(context, product: p),
                       ),
                     ],
                   ),
@@ -418,8 +515,17 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 }
+
 // --- 3. DASHBOARD MODULE (UPDATED) ---
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
+  // Change to StatefulWidget
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  bool _isGraphVisible = false;
+
   void _showSaleDetails(BuildContext context, Map<String, dynamic> sale) {
     List<dynamic> items = [];
     if (sale['items'] != null) {
@@ -429,7 +535,9 @@ class DashboardPage extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // Allows sheet to take more space
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => Container(
         padding: EdgeInsets.all(20),
         child: Column(
@@ -439,8 +547,14 @@ class DashboardPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Sale #${sale['id']} Details", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                IconButton(icon: Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                Text(
+                  "Sale #${sale['id']} Details",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
               ],
             ),
             Divider(),
@@ -449,12 +563,20 @@ class DashboardPage extends StatelessWidget {
                 shrinkWrap: true,
                 children: [
                   if (items.isEmpty) Text("No item details recorded."),
-                  ...items.map((item) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(item['name']),
-                    subtitle: Text("${item['qty']} x ${formatter.format(item['price'])}"),
-                    trailing: Text(formatter.format(item['qty'] * item['price'])),
-                  )).toList(),
+                  ...items
+                      .map(
+                        (item) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(item['name']),
+                          subtitle: Text(
+                            "${item['qty']} x ${formatter.format(item['price'])}",
+                          ),
+                          trailing: Text(
+                            formatter.format(item['qty'] * item['price']),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ],
               ),
             ),
@@ -462,8 +584,18 @@ class DashboardPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Total Paid:", style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(formatter.format(sale['total']), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                Text(
+                  "Total Paid:",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  formatter.format(sale['total']),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
+                  ),
+                ),
               ],
             ),
             SizedBox(height: 20),
@@ -475,8 +607,8 @@ class DashboardPage extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
-                        padding: EdgeInsets.symmetric(vertical: 12)
+                      backgroundColor: Colors.indigo,
+                      padding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () => PdfHelper.generateAndPrintReceipt(sale),
                     icon: Icon(Icons.picture_as_pdf, color: Colors.white),
@@ -484,20 +616,21 @@ class DashboardPage extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 10), // Space between buttons
-
                 // 2. New Share Button
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[700],
-                        padding: EdgeInsets.symmetric(vertical: 12)
+                      backgroundColor: Colors.green[700],
+                      padding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () async {
                       // Re-use PDF generation logic to get the bytes
-                      final pdfBytes = await PdfHelper.generateReceiptBytes(sale);
+                      final pdfBytes = await PdfHelper.generateReceiptBytes(
+                        sale,
+                      );
                       await Printing.sharePdf(
-                          bytes: pdfBytes,
-                          filename: 'Receipt_${sale['id']}.pdf'
+                        bytes: pdfBytes,
+                        filename: 'Receipt_${sale['id']}.pdf',
                       );
                     },
                     icon: Icon(Icons.share, color: Colors.white),
@@ -519,22 +652,61 @@ class DashboardPage extends StatelessWidget {
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: DBProvider.db.getSales(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-          double revenue = snapshot.data!.fold(0, (sum, item) => sum + item['total']);
+          if (!snapshot.hasData)
+            return Center(child: CircularProgressIndicator());
+          List<Map<String, dynamic>> sales = snapshot.data!;
+          double revenue = snapshot.data!.fold(
+            0,
+            (sum, item) => sum + item['total'],
+          );
 
           return Column(
             children: [
               Card(
                 margin: EdgeInsets.all(16),
                 color: Colors.indigo[50],
-                child: ListTile(
-                  title: Text("Total Revenue"),
-                  subtitle: Text(formatter.format(revenue), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.indigo)),
-                ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      title: Text("Total Revenue"),
+                      subtitle: Text(
+                        formatter.format(revenue),
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _isGraphVisible
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              color: Colors.indigo,
+                              size: 30,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isGraphVisible = !_isGraphVisible;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isGraphVisible) RevenueGraph(sales: sales),
+                  ],
+                )
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text("Tap a Sale ID to see details & print", style: TextStyle(color: Colors.grey)),
+                child: Text(
+                  "Tap a Sale ID to see details & print",
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
               Expanded(
                 child: ListView.builder(
@@ -545,23 +717,92 @@ class DashboardPage extends StatelessWidget {
                       title: GestureDetector(
                         onTap: () => _showSaleDetails(context, sale),
                         child: Text(
-                            "Sale #${sale['id']}",
-                            style: TextStyle(
-                                color: Colors.indigo,
-                                decoration: TextDecoration.underline,
-                                fontWeight: FontWeight.bold
-                            )
+                          "Sale #${sale['id']}",
+                          style: TextStyle(
+                            color: Colors.indigo,
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       subtitle: Text(sale['date'].toString().split('.')[0]),
-                      trailing: Text(formatter.format(sale['total']), style: TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: Text(
+                        formatter.format(sale['total']),
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     );
                   },
                 ),
-              )
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class RevenueGraph extends StatelessWidget {
+  final List<Map<String, dynamic>> sales;
+  const RevenueGraph({required this.sales});
+
+  @override
+  Widget build(BuildContext context) {
+    List<FlSpot> spots = [];
+    var sortedSales = List<Map<String, dynamic>>.from(sales);
+    sortedSales.sort((a, b) => a['date'].compareTo(b['date']));
+
+    for (int i = 0; i < sortedSales.length; i++) {
+      spots.add(FlSpot(i.toDouble(), (sortedSales[i]['total'] as num).toDouble()));
+    }
+
+    return Container(
+      height: 200,
+      padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: LineChart(
+        LineChartData(
+          lineTouchData: LineTouchData(
+            getTouchedSpotIndicator: (LineChartBarData barData, List<int> spotIndexes) {
+              return spotIndexes.map((index) {
+                return TouchedSpotIndicatorData(
+                  FlLine(color: Colors.transparent),
+                  FlDotData(show: false),
+                );
+              }).toList();
+            },
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (touchedSpot) => Colors.white,
+              tooltipPadding: EdgeInsets.all(8),
+              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                return touchedBarSpots.map((barSpot) {
+                  return LineTooltipItem(
+                    formatter.format(barSpot.y),
+                    const TextStyle(
+                      color: Colors.indigo,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+          gridData: FlGridData(show: false),
+          titlesData: FlTitlesData(show: false),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: Colors.indigo,
+              barWidth: 3,
+              dotData: FlDotData(show: true),
+              belowBarData: BarAreaData(
+                  show: true,
+                  color: Colors.indigo.withOpacity(0.1)
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
