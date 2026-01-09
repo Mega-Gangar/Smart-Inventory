@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'pdfGenerate.dart';
 import 'revenueGraph.dart';
@@ -19,7 +20,6 @@ class _DashboardPageState extends State<DashboardPage> {
     if (sale['items'] != null) {
       items = jsonDecode(sale['items']);
     }
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // Allows sheet to take more space
@@ -137,6 +137,62 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
           ),
+    );
+  }
+  //Edit documents details for printing
+  Future<void> _saveBusinessDetails(String name, String gstin) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('company_name', name);
+    await prefs.setString('gstin_number', gstin);
+  }
+  void _showBusinessDetailsDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Pre-fill controllers with existing data if available
+    TextEditingController nameController = TextEditingController(text: prefs.getString('company_name') ?? "");
+    TextEditingController gstinController = TextEditingController(text: prefs.getString('gstin_number') ?? "");
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Billing Details"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: "Company Name",
+                hintText: "Enter company name for billing",
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: gstinController,
+              decoration: const InputDecoration(
+                labelText: "GSTIN Number",
+                hintText: "Enter GSTIN number",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("CANCEL"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _saveBusinessDetails(nameController.text, gstinController.text);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Billing details saved!")),
+              );
+            },
+            child: const Text("SAVE"),
+          ),
+        ],
+      ),
     );
   }
 
@@ -406,6 +462,13 @@ class _DashboardPageState extends State<DashboardPage> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(title: Text("Profit & Analytics"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit_document),
+              tooltip: 'Edit Printing Format',
+              onPressed: () => _showBusinessDetailsDialog(),
+            ),
+          ],
           bottom: TabBar(
             tabs: [
               Tab(icon: Icon(Icons.show_chart), text: "Sales Summary"),

@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PdfHelper {
   // Static formatter using standard characters to avoid font errors
@@ -11,8 +12,10 @@ class PdfHelper {
     locale: 'en_IN',
     symbol: 'Rs. ',
   );
-
   static Future<void> generateAndPrintReceipt(Map<String, dynamic> sale) async {
+    final prefs = await SharedPreferences.getInstance();
+    String company = prefs.getString('company_name') ?? "Smart Billing";
+    String gstin = prefs.getString('gstin_number') ?? "";
     final pdf = pw.Document();
     final List<dynamic> items = jsonDecode(sale['items'] ?? '[]');
 
@@ -25,7 +28,8 @@ class PdfHelper {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Center(child: pw.Text("SMART BILLING", style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold))),
+                pw.Center(child: pw.Text(company, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold))),
+                if (gstin.isNotEmpty) pw.Center(child: pw.Text("GSTIN: $gstin")),
                 pw.Center(child: pw.Text("Receipt No: #${sale['id']}")),
                 pw.Center(child: pw.Text("Date: ${sale['date'].toString().split('.')[0]}")),
                 pw.Divider(thickness: 1),
