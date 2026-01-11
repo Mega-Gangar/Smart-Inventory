@@ -3,10 +3,11 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'pdfGenerate.dart';
-import 'revenueGraph.dart';
+import 'pdf_generate.dart';
+import 'revenue_graph.dart';
 import 'main.dart';
 class DashboardPage extends StatefulWidget {
+  const DashboardPage({super.key});
   // Change to StatefulWidget
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -68,7 +69,6 @@ class _DashboardPageState extends State<DashboardPage> {
                               ),
                             ),
                       )
-                          .toList(),
                     ],
                   ),
                 ),

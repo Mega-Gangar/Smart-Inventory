@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'dart:typed_data';
 import 'main.dart';
 class RevenueGraph extends StatelessWidget {
   final List<Map<String, dynamic>> sales;
-  const RevenueGraph({required this.sales});
+  const RevenueGraph({super.key, required this.sales});
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +94,7 @@ class RevenueGraph extends StatelessWidget {
               dotData: const FlDotData(show: true),
               belowBarData: BarAreaData(
                 show: true,
-                color: Colors.indigo.withOpacity(0.1),
+                color: Colors.indigo.withValues(alpha: 0.1),
               ),
             ),
           ],

@@ -10,6 +10,7 @@ void main() => runApp(SmartBillingApp());
 final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
 
 class SmartBillingApp extends StatelessWidget {
+  const SmartBillingApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -136,6 +137,7 @@ class DBProvider {
 
 // --- MAIN UI SCREEN ---
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -164,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
+  const BillingPage({super.key});
   @override
   _BillingPageState createState() => _BillingPageState();
 }
@@ -214,8 +217,9 @@ class _BillingPageState extends State<BillingPage> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: DBProvider.db.getProducts(),
               builder: (ctx, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return Center(child: CircularProgressIndicator());
+                }
                 return ListView.builder(
                   itemCount: snapshot.data!.length,
                   itemBuilder: (context, i) {
@@ -331,6 +335,7 @@ class _BillingPageState extends State<BillingPage> {
 
 // --- 2. INVENTORY MODULE ---
 class InventoryPage extends StatefulWidget {
+  const InventoryPage({super.key});
   @override
   _InventoryPageState createState() => _InventoryPageState();
 }
@@ -433,11 +438,12 @@ class _InventoryPageState extends State<InventoryPage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameController.text.isEmpty || priceController.text.isEmpty)
+              if (nameController.text.isEmpty || priceController.text.isEmpty) {
                 return;
+              }
               if (isEditing) {
                 await DBProvider.db.updateProduct(
-                  product!['id'],
+                  product['id'],
                   nameController.text,
                   double.parse(priceController.text),
                   double.parse(costController.text),
@@ -478,11 +484,12 @@ class _InventoryPageState extends State<InventoryPage> {
         key: _refreshKey,
         future: DBProvider.db.getProducts(),
         builder: (ctx, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return Center(child: CircularProgressIndicator());
-          if (snapshot.data!.isEmpty)
+          }
+          if (snapshot.data!.isEmpty) {
             return Center(child: Text("Stock is empty. Add products."));
-
+          }
           return ListView.builder(
             itemCount: snapshot.data!.length,
             itemBuilder: (itemCtx, i) {
@@ -506,7 +513,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     p['name'],
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text("${formatter.format(p['price'])}"),
+                  subtitle: Text(formatter.format(p['price'])),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -545,5 +552,3 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 }
-
-// --- 3. DASHBOARD MODULE (UPDATED) ---
