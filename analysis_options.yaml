@@ -7,12 +7,10 @@
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
-<<<<<<< HEAD
-=======
+
 analyzer:
   errors:
     use_build_context_synchronously: ignore
->>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
 include: package:flutter_lints/flutter.yaml
 
 linter:

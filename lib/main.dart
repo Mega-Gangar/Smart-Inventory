@@ -70,11 +70,7 @@ class DBProvider {
     final dbClient = await database;
     double total = cartItems.fold(
       0,
-<<<<<<< HEAD
           (sum, item) => sum + (item['price'] * item['qty']),
-=======
-      (sum, item) => sum + (item['price'] * item['qty']),
->>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
     );
 
     // Convert list of items to a string to store in DB
@@ -100,21 +96,12 @@ class DBProvider {
   }
 
   Future<void> updateProduct(
-<<<<<<< HEAD
       int id,
       String name,
       double price,
       double cost,
       int stock,
       ) async {
-=======
-    int id,
-    String name,
-    double price,
-    double cost,
-    int stock,
-  ) async {
->>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
     final dbClient = await database;
     await dbClient.update(
       'products',
@@ -319,7 +306,6 @@ class _BillingPageState extends State<BillingPage> {
                     onPressed: _cart.isEmpty
                         ? null
                         : () async {
-<<<<<<< HEAD
                       await DBProvider.db.completeSale(_cart);
                       setState(() {
                         _cart = [];
@@ -332,20 +318,6 @@ class _BillingPageState extends State<BillingPage> {
                         ),
                       );
                     },
-=======
-                            await DBProvider.db.completeSale(_cart);
-                            setState(() {
-                              _cart = [];
-                              _total = 0;
-                              _itemCounters.clear();
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Sale Successfully Processed"),
-                              ),
-                            );
-                          },
->>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
                     child: Text(
                       "COMPLETE SALE",
                       style: TextStyle(fontSize: 16),
@@ -413,15 +385,9 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   void _showProductDialog(
-<<<<<<< HEAD
       BuildContext context, {
         Map<String, dynamic>? product,
       }) {
-=======
-    BuildContext context, {
-    Map<String, dynamic>? product,
-  }) {
->>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
     bool isEditing = product != null;
     if (isEditing) {
       nameController.text = product['name'];
@@ -585,8 +551,4 @@ class _InventoryPageState extends State<InventoryPage> {
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
