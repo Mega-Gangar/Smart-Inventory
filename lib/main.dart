@@ -1,11 +1,23 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'dashboard.dart';
+import 'firebase_options.dart';
+import 'login.dart';
 
-void main() => runApp(SmartBillingApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(const SmartBillingApp());
+}
 
 final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
 
@@ -16,7 +28,7 @@ class SmartBillingApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.indigo),
-      home: HomeScreen(),
+      home: LoginPage(),
     );
   }
 }

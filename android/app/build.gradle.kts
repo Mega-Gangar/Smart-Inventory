@@ -1,5 +1,8 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     // FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -7,7 +10,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.smart_inventory"
+    namespace = "com.ram.smart_inventory"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.smart_inventory"
+        applicationId = "com.ram.smart_inventory"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
