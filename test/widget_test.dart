@@ -13,7 +13,11 @@ import 'package:smart_inventory/main.dart';
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
+<<<<<<< HEAD
     await tester.pumpWidget(const SmartBillingApp());
+=======
+    await tester.pumpWidget(SmartBillingApp());
+>>>>>>> 3ee39e5adff40df8bc03c942f88ffb82e9219112
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
