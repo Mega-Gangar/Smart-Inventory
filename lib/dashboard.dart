@@ -149,7 +149,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final prefs = await SharedPreferences.getInstance();
 
     // Pre-fill controllers with existing data if available
-    TextEditingController nameController = TextEditingController(text: prefs.getString('company_name') ?? "");
+    TextEditingController nameController = TextEditingController(text: prefs.getString('company_name') ?? "Smart Billing");
     TextEditingController gstinController = TextEditingController(text: prefs.getString('gstin_number') ?? "");
 
     showDialog(
