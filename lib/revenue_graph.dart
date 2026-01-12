@@ -1,0 +1,105 @@
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import 'main.dart';
+class RevenueGraph extends StatelessWidget {
+  final List<Map<String, dynamic>> sales;
+  const RevenueGraph({super.key, required this.sales});
+
+  @override
+  Widget build(BuildContext context) {
+    if (sales.isEmpty) {
+      return const SizedBox(
+          height: 200,
+          child: Center(child: Text("No sales data to display yet"))
+      );
+    }
+
+    // 1. Get Today's Date (Midnight)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterdayDate = now.subtract(Duration(days: 1));
+    final todayLabel=DateFormat('dd MMM').format(today);
+    final yesterdayLabel = DateFormat('dd MMM').format(yesterdayDate);
+
+    // 2. Separate Sales
+    double previousTotal = 0;
+    List<Map<String, dynamic>> todaySales = [];
+
+    for (var sale in sales) {
+      // Parse the SQLite String date back to a DateTime object
+      DateTime saleDate = DateTime.parse(sale['date'].toString());
+
+      if (saleDate.isBefore(today)) {
+        previousTotal += (sale['total'] as num).toDouble();
+      } else {
+        todaySales.add(sale);
+      }
+    }
+
+    // 3. Sort Today's Sales by Time (Earliest to Latest)
+    todaySales.sort((a, b) => a['date'].compareTo(b['date']));
+
+    // 4. Create Spots (Max 10)
+    List<FlSpot> spots = [];
+
+    // add the Previous Total as the starting point (Dot 0)
+    spots.add(FlSpot(0, previousTotal));
+
+    // Add Today's Sales (Limit to the last 9 sales to keep the 10-dot limit)
+    int startIdx = todaySales.length > 9 ? todaySales.length - 9 : 0;
+    for (int i = startIdx; i < todaySales.length; i++) {
+      spots.add(FlSpot(
+          (spots.length).toDouble(),
+          (todaySales[i]['total'] as num).toDouble()
+      ));
+    }
+
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
+      child: LineChart(
+        LineChartData(
+          lineTouchData: LineTouchData(
+            getTouchedSpotIndicator: (barData, spotIndexes) {
+              return spotIndexes.map((index) => TouchedSpotIndicatorData(
+                FlLine(color: Colors.transparent),
+                FlDotData(show: false),
+              )).toList();
+            },
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (touchedSpot) => Colors.white,
+              getTooltipItems: (touchedBarSpots) {
+                return touchedBarSpots.map((barSpot) {
+                  String label = barSpot.x == 0
+                      ? yesterdayLabel
+                      : todayLabel;
+                  return LineTooltipItem(
+                    "$label\n${formatter.format(barSpot.y)}",
+                    const TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+          gridData: const FlGridData(show: false),
+          titlesData: const FlTitlesData(show: false),
+          borderData: FlBorderData(show: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: spots.length > 1,
+              color: Colors.indigo,
+              barWidth: 3,
+              dotData: const FlDotData(show: true),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.indigo.withValues(alpha: 0.1),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

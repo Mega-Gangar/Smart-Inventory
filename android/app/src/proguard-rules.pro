@@ -1,0 +1,2 @@
+-keep class com.baseflow.printing.** { *; }
+-keep class net.nfet.flutter.printing.** { *; }
