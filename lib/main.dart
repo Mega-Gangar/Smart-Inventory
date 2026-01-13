@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
@@ -7,14 +8,13 @@ import 'dart:convert';
 import 'dashboard.dart';
 import 'firebase_options.dart';
 import 'login.dart';
+import 'billing.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const SmartBillingApp());
 }
@@ -27,8 +27,16 @@ class SmartBillingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.indigo),
-      home: LoginPage(),
+      theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return const HomeScreen();
+          }
+          return const LoginPage();
+        },
+      ),
     );
   }
 }
@@ -63,13 +71,18 @@ class DBProvider {
     );
   }
 
-  Future<void> addProduct(String name, double price, double cost, int stock) async {
+  Future<void> addProduct(
+    String name,
+    double price,
+    double cost,
+    int stock,
+  ) async {
     final dbClient = await database;
     await dbClient.insert('products', {
       'name': name,
       'price': price,
       'cost': cost,
-      'stock': stock
+      'stock': stock,
     });
   }
 
@@ -82,7 +95,7 @@ class DBProvider {
     final dbClient = await database;
     double total = cartItems.fold(
       0,
-          (sum, item) => sum + (item['price'] * item['qty']),
+      (sum, item) => sum + (item['price'] * item['qty']),
     );
 
     // Convert list of items to a string to store in DB
@@ -108,16 +121,16 @@ class DBProvider {
   }
 
   Future<void> updateProduct(
-      int id,
-      String name,
-      double price,
-      double cost,
-      int stock,
-      ) async {
+    int id,
+    String name,
+    double price,
+    double cost,
+    int stock,
+  ) async {
     final dbClient = await database;
     await dbClient.update(
       'products',
-      {'name': name, 'price': price, 'cost':cost,'stock': stock},
+      {'name': name, 'price': price, 'cost': cost, 'stock': stock},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -127,6 +140,7 @@ class DBProvider {
     final dbClient = await database;
     await dbClient.delete('products', where: 'id = ?', whereArgs: [id]);
   }
+
   Future<void> returnSale(Map<String, dynamic> sale) async {
     final dbClient = await database;
 
@@ -156,7 +170,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  final profitLabel="\t\t\tProfit\nAnalytics";
+  final profitLabel = "\t\t\tProfit\nAnalytics";
   // FIXED: These now point to the correct Widget classes
   final List<Widget> _pages = [BillingPage(), InventoryPage(), DashboardPage()];
   @override
@@ -169,181 +183,17 @@ class _HomeScreenState extends State<HomeScreen> {
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.receipt), label: "Billing"),
           BottomNavigationBarItem(icon: Icon(Icons.inventory), label: "Stock"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: profitLabel),
-        ],
-      ),
-    );
-  }
-}
-
-// --- 1. BILLING MODULE ---
-class BillingPage extends StatefulWidget {
-  const BillingPage({super.key});
-  @override
-  _BillingPageState createState() => _BillingPageState();
-}
-
-class _BillingPageState extends State<BillingPage> {
-  Map<int, int> _itemCounters = {};
-  List<Map<String, dynamic>> _cart = [];
-  double _total = 0;
-
-  void _updateCounter(int productId, int delta, int maxStock) {
-    setState(() {
-      int current = _itemCounters[productId] ?? 0;
-      int newValue = current + delta;
-      if (newValue >= 0 && newValue <= maxStock) {
-        _itemCounters[productId] = newValue;
-      }
-    });
-  }
-
-  void _addToCart(Map<String, dynamic> product, BuildContext context) {
-    int qty = _itemCounters[product['id']] ?? 0;
-    if (qty <= 0) return;
-
-    setState(() {
-      _cart.add({
-        'id': product['id'],
-        'name': product['name'],
-        'price': product['price'],
-        'cost':product['cost'],
-        'qty': qty,
-      });
-      _total += (product['price'] * qty);
-      _itemCounters[product['id']] = 0;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Added $qty x ${product['name']} to cart")),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("New Sale")),
-      body: Column(
-        children: [
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: DBProvider.db.getProducts(),
-              builder: (ctx, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                return ListView.builder(
-                  itemCount: snapshot.data!.length,
-                  itemBuilder: (context, i) {
-                    var item = snapshot.data![i];
-                    int id = item['id'];
-                    int stock = item['stock'];
-                    int currentCount = _itemCounters[id] ?? 0;
-
-                    return Card(
-                      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      child: ListTile(
-                        title: Text(
-                          item['name'],
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          "Price: ${formatter.format(item['price'])} | Stock: $stock",
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.remove_circle,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () => _updateCounter(id, -1, stock),
-                            ),
-                            Text(
-                              "$currentCount",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.add_circle, color: Colors.green),
-                              onPressed: () => _updateCounter(id, 1, stock),
-                            ),
-                            ElevatedButton(
-                              onPressed: currentCount > 0
-                                  ? () => _addToCart(item, context)
-                                  : null,
-                              child: Text("Add"),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-          Divider(thickness: 2),
-          Container(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Cart Items: ${_cart.length}",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    Text(
-                      "Total: ${formatter.format(_total)}",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    onPressed: _cart.isEmpty
-                        ? null
-                        : () async {
-                      await DBProvider.db.completeSale(_cart);
-                      setState(() {
-                        _cart = [];
-                        _total = 0;
-                        _itemCounters.clear();
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Sale Successfully Processed"),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      "COMPLETE SALE",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: profitLabel,
           ),
         ],
       ),
     );
   }
 }
+
+
 
 // --- 2. INVENTORY MODULE ---
 class InventoryPage extends StatefulWidget {
@@ -397,15 +247,15 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   void _showProductDialog(
-      BuildContext context, {
-        Map<String, dynamic>? product,
-      }) {
+    BuildContext context, {
+    Map<String, dynamic>? product,
+  }) {
     bool isEditing = product != null;
     if (isEditing) {
       nameController.text = product['name'];
       priceController.text = product['price'].toString();
       stockController.text = product['stock'].toString();
-      costController.text=product['cost'].toString();
+      costController.text = product['cost'].toString();
     } else {
       nameController.clear();
       priceController.clear();
@@ -465,7 +315,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 await DBProvider.db.addProduct(
                   nameController.text,
                   double.tryParse(priceController.text) ?? 0.0,
-                  double.tryParse(costController.text)?? 0.0,
+                  double.tryParse(costController.text) ?? 0.0,
                   int.tryParse(stockController.text) ?? 0,
                 );
               }

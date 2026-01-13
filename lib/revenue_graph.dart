@@ -88,7 +88,7 @@ class RevenueGraph extends StatelessWidget {
           lineBarsData: [
             LineChartBarData(
               spots: spots,
-              isCurved: spots.length > 1,
+              isCurved: true,
               color: Colors.indigo,
               barWidth: 3,
               dotData: const FlDotData(show: true),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'main.dart';
 import 'registration.dart';
+import 'validator.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,20 +29,8 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      // On Success: Navigate to HomeScreen
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
     } on FirebaseAuthException catch (e) {
-      String message = "An error occurred";
-      if (e.code == 'user-not-found') message = "No user found with this email.";
-      if (e.code == 'wrong-password') message = "Incorrect password.";
-      if (e.code == 'invalid-email') message = "The email address is badly formatted.";
-
+      String message = "An email or a password is incorrect \n Or a New User, first register yourself";
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
       );
@@ -70,12 +58,6 @@ class _LoginPageState extends State<LoginPage> {
 
       await FirebaseAuth.instance.signInWithCredential(credential);
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Google Sign-In failed: $e")),
@@ -131,7 +113,7 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                     ),
                   ),
-                  validator: (v) => (v == null || v.length < 6) ? "Min 6 characters" : null,
+                  validator: AppValidators.validatePassword,
                 ),
                 const SizedBox(height: 30),
 

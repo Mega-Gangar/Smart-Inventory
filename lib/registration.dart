@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'main.dart';
+import 'validator.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -34,12 +34,17 @@ class _RegisterPageState extends State<RegisterPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
+      await FirebaseAuth.instance.signOut();
       if (mounted) {
-        Navigator.pop(context); // Go back to login or auto-login logic
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account created successfully! Please login.")),
+          const SnackBar(
+            content: Text("Registration Successful! Please login."),
+            backgroundColor: Colors.green,
+          ),
         );
+
+        // 3. Go back to LoginPage
+        Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -49,37 +54,63 @@ class _RegisterPageState extends State<RegisterPage> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-  
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      
+
       if (googleUser == null) {
-        // User cancelled the sign-in
+        setState(() => _isLoading = false);
         return;
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      final credential = GoogleAuthProvider.credential(
+      final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      // 1. Get the UserCredential object
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
 
+      // 2. Check if the user is NOT new (already registered)
+      bool isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+
+      if (!isNewUser) {
+        // User already exists in Firebase
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Account already exists. Try Login"),
+              backgroundColor: Colors.blueAccent,
+            ),
+          );
+        }
+      } else {
+        // Brand new registration
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Welcome! Your account has been created."),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+      //Sign in again in login page
+      await FirebaseAuth.instance.signOut();
+      await GoogleSignIn().signOut();
+
+      if (mounted) Navigator.pop(context);
+
+    } catch (e) {
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (route) => false, // Clears the navigation stack
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign-In failed: $e")),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Registration failed: $e")),
-      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -107,14 +138,14 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _passwordController,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.length < 6) ? "Min 6 characters" : null,
+                validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 15),
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder()),
-                validator: (v) => v!.isEmpty ? "Confirm your password" : null,
+                validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 30),
               SizedBox(
