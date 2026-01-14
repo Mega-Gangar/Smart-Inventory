@@ -16,6 +16,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
@@ -136,8 +137,15 @@ class _RegisterPageState extends State<RegisterPage> {
               const SizedBox(height: 15),
               TextFormField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder(),hintText: "Minimum 8 characters required"),
+                obscureText: !_isPasswordVisible,
+                decoration: InputDecoration(
+                    labelText: "Password",
+                    border: OutlineInputBorder(),
+                    hintText: "Minimum 8 characters required",
+                  suffixIcon: IconButton(
+                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                  ),),
                 validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 15),
