@@ -83,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
                 const Icon(Icons.inventory_2, size: 80, color: Colors.indigo),
                 const SizedBox(height: 10),
                 const Text(
-                  "Smart Billing Login",
+                  "Smart Inventory Login",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 30),

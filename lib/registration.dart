@@ -137,14 +137,14 @@ class _RegisterPageState extends State<RegisterPage> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: "Password", border: OutlineInputBorder(),hintText: "Minimum 8 characters required"),
                 validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 15),
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder(),hintText: "Minimum 8 characters required"),
                 validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 30),

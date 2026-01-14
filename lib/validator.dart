@@ -7,7 +7,7 @@ class AppValidators {
     );
 
     if (!passwordRegExp.hasMatch(value)) {
-      return 'Must be 8+ chars, include Uppercase, Number & Symbol';
+      return 'Must include Uppercase, Number & Symbol';
     }
     return null;
   }
