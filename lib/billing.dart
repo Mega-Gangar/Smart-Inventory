@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'main.dart';
+
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
   const BillingPage({super.key});
@@ -59,7 +60,9 @@ class _BillingPageState extends State<BillingPage> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text("Logout"),
-                  content: const Text("Are you sure you want to log out? Any unsaved sale progress will be lost."),
+                  content: const Text(
+                    "Are you sure you want to log out? Any unsaved sale progress will be lost.",
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context), // Cancel
@@ -79,7 +82,9 @@ class _BillingPageState extends State<BillingPage> {
                           }
                           // It pops everything until it reaches the initial route (the StreamBuilder)
                           if (context.mounted) {
-                            Navigator.of(context).popUntil((route) => route.isFirst);
+                            Navigator.of(
+                              context,
+                            ).popUntil((route) => route.isFirst);
                           }
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +92,10 @@ class _BillingPageState extends State<BillingPage> {
                           );
                         }
                       },
-                      child: const Text("Logout", style: TextStyle(color: Colors.red)),
+                      child: const Text(
+                        "Logout",
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ],
                 ),
@@ -111,6 +119,7 @@ class _BillingPageState extends State<BillingPage> {
                     var item = snapshot.data![i];
                     int id = item['id'];
                     int stock = item['stock'];
+                    String itemName = item['name'];
                     int currentCount = _itemCounters[id] ?? 0;
 
                     return Card(
@@ -141,8 +150,18 @@ class _BillingPageState extends State<BillingPage> {
                               ),
                             ),
                             IconButton(
-                              icon: Icon(Icons.add_circle, color: Colors.green),
-                              onPressed: () => _updateCounter(id, 1, stock),
+                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              onPressed: (_itemCounters[id] ?? 0) < stock
+                                  ? () => _updateCounter(id, 1, stock)
+                                  : () {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Only $stock units of $itemName available in stock!"),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
                             ),
                             ElevatedButton(
                               onPressed: currentCount > 0
@@ -191,18 +210,18 @@ class _BillingPageState extends State<BillingPage> {
                     onPressed: _cart.isEmpty
                         ? null
                         : () async {
-                      await DBProvider.db.completeSale(_cart);
-                      setState(() {
-                        _cart = [];
-                        _total = 0;
-                        _itemCounters.clear();
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Sale Successfully Processed"),
-                        ),
-                      );
-                    },
+                            await DBProvider.db.completeSale(_cart);
+                            setState(() {
+                              _cart = [];
+                              _total = 0;
+                              _itemCounters.clear();
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Sale Successfully Processed"),
+                              ),
+                            );
+                          },
                     child: Text(
                       "COMPLETE SALE",
                       style: TextStyle(fontSize: 16),
