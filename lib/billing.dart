@@ -16,34 +16,71 @@ class _BillingPageState extends State<BillingPage> {
   double _total = 0;
 
   void _updateCounter(int productId, int delta, int maxStock) {
+    int inCart = _getQtyInCart(productId);
+    int realAvailable = maxStock - inCart;
     setState(() {
       int current = _itemCounters[productId] ?? 0;
       int newValue = current + delta;
-      if (newValue >= 0 && newValue <= maxStock) {
+
+      if (newValue >= 0 && newValue <= realAvailable) {
         _itemCounters[productId] = newValue;
+      } else if (newValue > realAvailable) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Total in cart selection cannot exceed $maxStock"),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
+          ),
+        );
       }
     });
   }
 
   void _addToCart(Map<String, dynamic> product, BuildContext context) {
+    int id = product['id'];
     int qty = _itemCounters[product['id']] ?? 0;
-    if (qty <= 0) return;
-
+    if (qty <= 0 && (product['stock'] ?? 0) > 0) {
+      qty = 1;
+    } else if (qty <= 0) {
+      return;
+    }
     setState(() {
       _cart.add({
-        'id': product['id'],
+        'id': id,
         'name': product['name'],
         'price': product['price'],
         'cost': product['cost'],
         'qty': qty,
       });
       _total += (product['price'] * qty);
-      _itemCounters[product['id']] = 0;
+      _itemCounters[id] = 0;
     });
-
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Added $qty x ${product['name']} to cart")),
+      SnackBar(
+        content: Text(
+          "Added $qty x ${product['name']} to cart"),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
+      ),
     );
+  }
+
+  int _getQtyInCart(int productId) {
+    int count = 0;
+    for (var item in _cart) {
+      if (item['id'] == productId) {
+        count += (item['qty'] as int);
+      }
+    }
+    return count;
   }
 
   @override
@@ -88,7 +125,7 @@ class _BillingPageState extends State<BillingPage> {
                           }
                         } catch (e) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error logging out: $e")),
+                            SnackBar(content: Text("Error in logging out")),
                           );
                         }
                       },
@@ -150,18 +187,33 @@ class _BillingPageState extends State<BillingPage> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              icon: const Icon(
+                                Icons.add_circle,
+                                color: Colors.green,
+                              ),
                               onPressed: (_itemCounters[id] ?? 0) < stock
                                   ? () => _updateCounter(id, 1, stock)
                                   : () {
-                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Only $stock units of $itemName available in stock!"),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            "Only $stock units of $itemName available in stock!"),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          duration: const Duration(seconds: 2),
+                                          margin: const EdgeInsets.only(
+                                            bottom: 132,
+                                            left: 16,
+                                            right: 16,
+                                          ),
+                                        ),
+                                      );
+                                    },
                             ),
                             ElevatedButton(
                               onPressed: currentCount > 0
@@ -219,6 +271,14 @@ class _BillingPageState extends State<BillingPage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text("Sale Successfully Processed"),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                duration: const Duration(seconds: 2),
+                                margin: const EdgeInsets.only(
+                                  bottom: 132,
+                                  left: 16,
+                                  right: 16,
+                                ),
                               ),
                             );
                           },
