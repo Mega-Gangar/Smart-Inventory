@@ -27,8 +27,7 @@ class _BillingPageState extends State<BillingPage> {
       } else if (newValue > realAvailable) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "Total in cart selection cannot exceed $maxStock"),
+            content: Text("Total in cart selection cannot exceed $maxStock"),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 2),
             shape: RoundedRectangleBorder(
@@ -63,8 +62,7 @@ class _BillingPageState extends State<BillingPage> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          "Added $qty x ${product['name']} to cart"),
+        content: Text("Added $qty x ${product['name']} to cart"),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -202,9 +200,14 @@ class _BillingPageState extends State<BillingPage> {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            "Only $stock units of $itemName available in stock!"),
+                                            "Only $stock units of $itemName available in stock!",
+                                          ),
                                           behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
                                           duration: const Duration(seconds: 2),
                                           margin: const EdgeInsets.only(
                                             bottom: 132,
@@ -272,7 +275,9 @@ class _BillingPageState extends State<BillingPage> {
                               SnackBar(
                                 content: Text("Sale Successfully Processed"),
                                 behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 duration: const Duration(seconds: 2),
                                 margin: const EdgeInsets.only(
                                   bottom: 132,

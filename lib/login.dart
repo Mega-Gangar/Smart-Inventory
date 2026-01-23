@@ -80,7 +80,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.inventory_2, size: 80, color: Colors.indigo),
+                const Image(image:AssetImage("lib/res/icon_circle.png"),height: 80),
                 const SizedBox(height: 10),
                 const Text(
                   "Smart Inventory Login",
