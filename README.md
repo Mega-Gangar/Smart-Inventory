@@ -65,3 +65,24 @@ The app uses a relational SQLite structure:
 * **Sales Table:** Stores transaction history, including timestamps and total amounts.
 * **Integrity:** Uses `stock >= 0` constraints to maintain accurate inventory levels.
 ---
+
+## Screenshots
+- **Login/Registration**
+
+<img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_1.jpg" width=300 alt="login page"/>  <img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_2.jpg" width=300 alt="registration page"/>
+
+- **Inventory Screen**
+
+<img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_3.jpg" width=300 alt="inventory page1"/>  <img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_4.jpg" width=300 alt="inventory page2"/>
+
+- **Billing Page**
+
+<img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_5.jpg" width=300 alt="billing page"/>
+
+- **Sales/Profit Screen**
+
+<img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_6.jpg" width=300 alt="sales page"/>  <img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_7.jpg" width=300 alt="profit page"/>
+
+- **Print Layout**
+
+<img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_8.jpg" width=300 alt="print layout"/>
