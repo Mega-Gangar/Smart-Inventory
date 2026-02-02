@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sizer/sizer.dart';
 import 'main.dart';
 
 // --- 1. BILLING MODULE ---
@@ -67,6 +68,51 @@ class _BillingPageState extends State<BillingPage> {
         duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
+      ),
+    );
+  }
+
+  void _showCartSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(3.h))),
+      builder: (context) => StatefulBuilder( // StatefulBuilder allows deleting items from inside the modal
+        builder: (context, setModalState) => Container(
+          padding: EdgeInsets.all(5.w),
+          height: 60.h, // Takes up 60% of the screen
+          child: Column(
+            children: [
+              Text("Review Cart", style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
+              Divider(),
+              Expanded(
+                child: _cart.isEmpty
+                    ? Center(child: Text("Cart is empty", style: TextStyle(fontSize: 15.sp)))
+                    : ListView.builder(
+                  itemCount: _cart.length,
+                  itemBuilder: (context, i) {
+                    final item = _cart[i];
+                    return ListTile(
+                      title: Text(item['name'], style: TextStyle(fontSize: 16.sp)),
+                      subtitle: Text("${item['qty']} x ${formatter.format(item['price'])}"),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete_outline, color: Colors.red, size: 20.sp),
+                        onPressed: () {
+                          setState(() {
+                            _total -= (item['price'] * item['qty']);
+                            _cart.removeAt(i);
+                          });
+                          setModalState(() {}); // Refresh the modal list
+                          if(_cart.isEmpty) Navigator.pop(context);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -165,7 +211,7 @@ class _BillingPageState extends State<BillingPage> {
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
-                          "Price: ${formatter.format(item['price'])} | Stock: $stock",
+                          "Price: ${formatter.format(item['price'])} | \nStock: $stock",
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -235,27 +281,44 @@ class _BillingPageState extends State<BillingPage> {
           ),
           Divider(thickness: 2),
           Container(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(4.w),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Cart Items: ${_cart.length}",
-                      style: TextStyle(fontSize: 16),
+
+                    // --- REPLACE YOUR OLD "Cart Items" TEXT WITH THIS ---
+                    InkWell(
+                      onTap: _showCartSheet, // Calls the function you created
+                      child: Row(
+                        children: [
+                          Icon(Icons.shopping_cart, color: Colors.indigo, size: 20.sp),
+                          SizedBox(width: 2.w),
+                          Text(
+                            "Items: ${_cart.length}",
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
                     Text(
                       "Total: ${formatter.format(_total)}",
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
                         color: Colors.indigo,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
+                SizedBox(height: 2.h),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(

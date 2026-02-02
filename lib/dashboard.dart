@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sizer/sizer.dart';
 import 'dart:convert';
 import 'pdf_generate.dart';
 import 'revenue_graph.dart';
@@ -29,7 +30,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       builder: (ctx) =>
           Container(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(5.w),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,7 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     Text(
                       "Sale #${sale['id']} Details",
                       style: TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
+                          fontSize: 16.sp, fontWeight: FontWeight.bold),
                     ),
                     IconButton(
                       icon: Icon(Icons.close),
@@ -78,19 +79,19 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     Text(
                       "Total Paid:",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       formatter.format(sale['total']),
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
                         color: Colors.indigo,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: 3.h),
 
                 // --- PRINT BUTTON ---
                 Row(
@@ -109,7 +110,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             "PRINT", style: TextStyle(color: Colors.white)),
                       ),
                     ),
-                    SizedBox(width: 10), // Space between buttons
+                    SizedBox(width: 4.w), // Space between buttons
                     // 2. New Share Button
                     Expanded(
                       child: ElevatedButton.icon(
@@ -161,16 +162,20 @@ class _DashboardPageState extends State<DashboardPage> {
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
+              style: TextStyle(fontSize: 16.sp),
+              decoration: InputDecoration(
                 labelText: "Company Name",
+                labelStyle: TextStyle(fontSize: 15.sp),
                 hintText: "Enter company name for billing",
               ),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 2.h),
             TextField(
               controller: gstinController,
-              decoration: const InputDecoration(
+              style: TextStyle(fontSize: 16.sp),
+              decoration: InputDecoration(
                 labelText: "GSTIN Number",
+                labelStyle: TextStyle(fontSize: 15.sp),
                 hintText: "Enter GSTIN number",
               ),
             ),
@@ -228,8 +233,8 @@ class _DashboardPageState extends State<DashboardPage> {
                       title: const Text("Total Revenue"),
                       subtitle: Text(
                         formatter.format(revenue),
-                        style: const TextStyle(
-                          fontSize: 28,
+                        style: TextStyle(
+                          fontSize: 22.sp,
                           fontWeight: FontWeight.bold,
                           color: Colors.indigo,
                         ),
@@ -255,13 +260,13 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
 
               // --- INSTRUCTION TEXT ---
-              const Padding(
+               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "Tap a Sale ID to see details & print",
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: Colors.grey, fontSize: 14.sp),
                   ),
                 ),
               ),
@@ -275,25 +280,28 @@ class _DashboardPageState extends State<DashboardPage> {
                   const Divider(height: 1),
                   itemBuilder: (context, i) {
                     // Reversing the list to show newest sales at the top
-                    final sale = sales.reversed.toList()[i];
+                    final sale = sales[i];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      contentPadding: EdgeInsets.symmetric(vertical: 0.5.h, horizontal: 4.w),
                       title: GestureDetector(
                         onTap: () => _showSaleDetails(context, sale),
                         onLongPress: () => _confirmRefund(context, sale),
                         child: Text(
                           "Sale #${sale['id']}",
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.indigo,
                             decoration: TextDecoration.underline,
                             fontWeight: FontWeight.bold,
+                            fontSize: 17.sp,
                           ),
                         ),
                       ),
-                      subtitle: Text(sale['date'].toString().split('.')[0]),
+                      subtitle: Text(sale['date'].toString().split('.')[0],
+                        style: TextStyle(fontSize: 15.sp),),
                       trailing: Text(
                         formatter.format(sale['total']),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 14.sp),
                       ),
                     );
                   },
@@ -375,9 +383,9 @@ class _DashboardPageState extends State<DashboardPage> {
               const Divider(height: 30, thickness: 2),
               _buildSummaryCard(mainTitle, grossProfit, mainColor, isMain: true),
 
-              const SizedBox(height: 20),
-              const Text("Profit Breakdown", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
+              SizedBox(height: 2.h),
+              Text("Profit Breakdown", style: TextStyle(fontSize: 17.sp, fontWeight: FontWeight.bold)),
+              SizedBox(height: 1.5.h),
               _buildPeriodBreakdown(sales),
             ],
           ),
@@ -389,12 +397,20 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildSummaryCard(String title, double amount, Color color, {bool isMain = false}) {
     return Card(
       elevation: isMain ? 4 : 1,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        title: Text(title, style: TextStyle(fontSize: isMain ? 18 : 16, fontWeight: isMain ? FontWeight.bold : FontWeight.normal)),
-        trailing: Text(
-          formatter.format(amount),
-          style: TextStyle(fontSize: isMain ? 20 : 16, fontWeight: FontWeight.bold, color: color),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: EdgeInsets.symmetric(vertical: 1.h),
+      child: Padding(
+        padding: EdgeInsets.all(2.w),
+        child: ListTile(
+          title: Text(title, style: TextStyle(fontSize: isMain ? 18.sp : 16.sp)),
+          trailing: Text(
+            formatter.format(amount),
+            style: TextStyle(
+                fontSize: isMain ? 18.sp : 16.sp,
+                fontWeight: FontWeight.bold,
+                color: color
+            ),
+          ),
         ),
       ),
     );

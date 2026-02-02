@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sizer/sizer.dart';
 import 'validator.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -127,8 +128,8 @@ class _RegisterPageState extends State<RegisterPage> {
           key: _formKey,
           child: Column(
             children: [
-              const Icon(Icons.person_add, size: 80, color: Colors.indigo),
-              const SizedBox(height: 20),
+              Icon(Icons.person_add, size: 10.h, color: Colors.indigo),
+              SizedBox(height: 2.h),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder()),
@@ -136,6 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 15),
               TextFormField(
+                style: TextStyle(fontSize: 12.sp),
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
@@ -150,6 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 15),
               TextFormField(
+                style: TextStyle(fontSize: 12.sp),
                 controller: _confirmPasswordController,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder(),hintText: "Minimum 8 characters required"),
@@ -186,7 +189,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 icon: Image.asset('lib/res/img.png', height: 24),
                 label: const Text("Continue with Google", style: TextStyle(color: Colors.black87)),
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
+                  minimumSize: Size(double.infinity, 6.h),
                   side: const BorderSide(color: Colors.grey),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),

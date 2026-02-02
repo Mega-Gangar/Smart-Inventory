@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:sizer/sizer.dart';
 import 'main.dart';
 class RevenueGraph extends StatelessWidget {
   final List<Map<String, dynamic>> sales;
@@ -9,9 +10,16 @@ class RevenueGraph extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (sales.isEmpty) {
-      return const SizedBox(
-          height: 200,
-          child: Center(child: Text("No sales data to display yet"))
+      return SizedBox(
+        height: 25.h,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.auto_graph, color: Colors.grey, size: 40.sp),
+            SizedBox(height: 1.h),
+            Text("No sales data for this period", style: TextStyle(color: Colors.grey, fontSize: 11.sp)),
+          ],
+        ),
       );
     }
 
@@ -40,24 +48,28 @@ class RevenueGraph extends StatelessWidget {
     // 3. Sort Today's Sales by Time (Earliest to Latest)
     todaySales.sort((a, b) => a['date'].compareTo(b['date']));
 
-    // 4. Create Spots (Max 10)
+    //4. Create Spots
     List<FlSpot> spots = [];
+    double runningTotal = previousTotal; // Start with yesterday's closing total
 
-    // add the Previous Total as the starting point (Dot 0)
-    spots.add(FlSpot(0, previousTotal));
+// Add the starting point (Yesterday's total)
+    spots.add(FlSpot(0, runningTotal));
 
-    // Add Today's Sales (Limit to the last 9 sales to keep the 10-dot limit)
+// Add Today's Sales with Cumulative Logic
     int startIdx = todaySales.length > 9 ? todaySales.length - 9 : 0;
     for (int i = startIdx; i < todaySales.length; i++) {
+      // Cumulative: Add current sale to the running total
+      runningTotal += (todaySales[i]['total'] as num).toDouble();
+
       spots.add(FlSpot(
-          (spots.length).toDouble(),
-          (todaySales[i]['total'] as num).toDouble()
+        spots.length.toDouble(),
+        runningTotal, // Plot the new total, not just the single sale amount
       ));
     }
 
     return Container(
-      height: 200,
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
+      height: 25.h,
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       child: LineChart(
         LineChartData(
           lineTouchData: LineTouchData(

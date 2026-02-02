@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sizer/sizer.dart';
 import 'registration.dart';
 import 'validator.dart';
 
@@ -30,9 +31,20 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
     } on FirebaseAuthException catch (e) {
-      String message = "An email or a password is incorrect \n Or a New User, first register yourself";
+      String message = "Login Failed";
+      if (e.code == 'user-not-found') {
+        message = "No account found for this email. Please register!";
+      } else if (e.code == 'wrong-password') {
+        message = "Incorrect password. Please try again.";
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(4.w),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -74,19 +86,19 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Image(image:AssetImage("lib/res/icon_circle.png"),height: 80),
-                const SizedBox(height: 10),
-                const Text(
+                Image(image:AssetImage("lib/res/icon_circle.png"),height: 12.h),
+                SizedBox(height: 2.h),
+                Text(
                   "Smart Inventory Login",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: 4.h),
 
                 // Email Field
                 TextFormField(

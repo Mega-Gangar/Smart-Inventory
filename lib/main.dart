@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:intl/intl.dart';
@@ -25,18 +26,22 @@ class SmartBillingApp extends StatelessWidget {
   const SmartBillingApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return const HomeScreen();
-          }
-          return const LoginPage();
-        },
-      ),
+    return Sizer(
+      builder: (context, orientation, deviceType) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
+          home: StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return const HomeScreen();
+              }
+              return const LoginPage();
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -53,20 +58,14 @@ class DBProvider {
     String path = join(await getDatabasesPath(), 'business.db');
     return await openDatabase(
       path,
-      version: 2, // Incremented version
+      version: 2,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE products(id INTEGER PRIMARY KEY, name TEXT, price REAL, cost REAL, stock INTEGER)',
+          'CREATE TABLE products(id INTEGER PRIMARY KEY, name TEXT, price REAL, cost REAL, stock INTEGER CHECK (stock >= 0))', // Added CHECK
         );
-        // Added 'items' column
         await db.execute(
           'CREATE TABLE sales(id INTEGER PRIMARY KEY, total REAL, date TEXT, items TEXT)',
         );
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('ALTER TABLE sales ADD COLUMN items TEXT');
-        }
       },
     );
   }
@@ -93,30 +92,37 @@ class DBProvider {
 
   Future<void> completeSale(List<Map<String, dynamic>> cartItems) async {
     final dbClient = await database;
-    double total = cartItems.fold(
-      0,
-      (sum, item) => sum + (item['price'] * item['qty']),
-    );
-
-    // Convert list of items to a string to store in DB
+    double total = cartItems.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
     String itemsJson = jsonEncode(cartItems);
 
-    await dbClient.insert('sales', {
-      'total': total,
-      'date': DateTime.now().toString(),
-      'items': itemsJson, // Save the items here
-    });
+    await dbClient.transaction((txn) async {
+      // 1. Insert the Sale Record
+      await txn.insert('sales', {
+        'total': total,
+        'date': DateTime.now().toString(),
+        'items': itemsJson,
+      });
 
-    for (var item in cartItems) {
-      await dbClient.rawUpdate(
-        'UPDATE products SET stock = stock - ? WHERE id = ?',
-        [item['qty'], item['id']],
-      );
-    }
+      // 2. Update Stock for each item
+      for (var item in cartItems) {
+        await txn.rawUpdate(
+          'UPDATE products SET stock = stock - ? WHERE id = ?',
+          [item['qty'], item['id']],
+        );
+      }
+    });
   }
 
-  Future<List<Map<String, dynamic>>> getSales() async {
+  Future<List<Map<String, dynamic>>> getSales({String? year}) async {
     final dbClient = await database;
+    if (year != null) {
+      return await dbClient.query(
+        'sales',
+        where: "strftime('%Y', date) = ?",
+        whereArgs: [year],
+        orderBy: 'id DESC',
+      );
+    }
     return await dbClient.query('sales', orderBy: 'id DESC');
   }
 
@@ -192,8 +198,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-
 
 // --- 2. INVENTORY MODULE ---
 class InventoryPage extends StatefulWidget {
@@ -357,18 +361,19 @@ class _InventoryPageState extends State<InventoryPage> {
             itemBuilder: (itemCtx, i) {
               var p = snapshot.data![i];
               return Card(
-                margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                margin: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
                 child: ListTile(
                   // --- TRIGGER DELETION ON LONG PRESS ---
                   onLongPress: () =>
                       _confirmDelete(context, p['id'], p['name']),
                   leading: CircleAvatar(
+                    radius: 6.w,
                     backgroundColor: p['stock'] < 5
                         ? Colors.red
                         : Colors.indigo,
                     child: Text(
                       "${p['stock']}",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 16.sp),
                     ),
                   ),
                   title: Text(
