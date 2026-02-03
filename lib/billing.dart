@@ -11,7 +11,36 @@ class BillingPage extends StatefulWidget {
   _BillingPageState createState() => _BillingPageState();
 }
 
-class _BillingPageState extends State<BillingPage> {
+class _BillingPageState extends RefreshableState<BillingPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  // 1. New variables to hold state locally
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProducts(); // Initial load
+  }
+
+  // 2. Optimized data fetcher (no flickering)
+  Future<void> _fetchProducts() async {
+    final data = await DBProvider.db.getProducts();
+    if (mounted) {
+      setState(() {
+        _products = data;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void refreshData() {
+    _fetchProducts(); // Silent background update
+  }
+
   Map<int, int> _itemCounters = {};
   List<Map<String, dynamic>> _cart = [];
   double _total = 0;
@@ -43,27 +72,33 @@ class _BillingPageState extends State<BillingPage> {
 
   void _addToCart(Map<String, dynamic> product, BuildContext context) {
     int id = product['id'];
-    int qty = _itemCounters[product['id']] ?? 0;
-    if (qty <= 0 && (product['stock'] ?? 0) > 0) {
-      qty = 1;
-    } else if (qty <= 0) {
-      return;
-    }
+    int qtyToAdd = _itemCounters[id] ?? 0;
+    if (qtyToAdd <= 0) return;
+
     setState(() {
-      _cart.add({
-        'id': id,
-        'name': product['name'],
-        'price': product['price'],
-        'cost': product['cost'],
-        'qty': qty,
-      });
-      _total += (product['price'] * qty);
-      _itemCounters[id] = 0;
+      // Check if item already exists in cart
+      int existingIndex = _cart.indexWhere((element) => element['id'] == id);
+
+      if (existingIndex != -1) {
+        // Update existing row
+        _cart[existingIndex]['qty'] += qtyToAdd;
+      } else {
+        // Add new row
+        _cart.add({
+          'id': id,
+          'name': product['name'],
+          'price': product['price'],
+          'cost': product['cost'],
+          'qty': qtyToAdd,
+        });
+      }
+      _total += (product['price'] * qtyToAdd);
+      _itemCounters[id] = 0; // Reset counter after adding
     });
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("Added $qty x ${product['name']} to cart"),
+        content: Text("Added $qtyToAdd x ${product['name']} to cart"),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -76,39 +111,59 @@ class _BillingPageState extends State<BillingPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(3.h))),
-      builder: (context) => StatefulBuilder( // StatefulBuilder allows deleting items from inside the modal
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(3.h)),
+      ),
+      builder: (context) => StatefulBuilder(
+        // StatefulBuilder allows deleting items from inside the modal
         builder: (context, setModalState) => Container(
           padding: EdgeInsets.all(5.w),
           height: 60.h, // Takes up 60% of the screen
           child: Column(
             children: [
-              Text("Review Cart", style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)),
+              Text(
+                "Review Cart",
+                style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+              ),
               Divider(),
               Expanded(
                 child: _cart.isEmpty
-                    ? Center(child: Text("Cart is empty", style: TextStyle(fontSize: 15.sp)))
+                    ? Center(
+                        child: Text(
+                          "Cart is empty",
+                          style: TextStyle(fontSize: 15.sp),
+                        ),
+                      )
                     : ListView.builder(
-                  itemCount: _cart.length,
-                  itemBuilder: (context, i) {
-                    final item = _cart[i];
-                    return ListTile(
-                      title: Text(item['name'], style: TextStyle(fontSize: 16.sp)),
-                      subtitle: Text("${item['qty']} x ${formatter.format(item['price'])}"),
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete_outline, color: Colors.red, size: 20.sp),
-                        onPressed: () {
-                          setState(() {
-                            _total -= (item['price'] * item['qty']);
-                            _cart.removeAt(i);
-                          });
-                          setModalState(() {}); // Refresh the modal list
-                          if(_cart.isEmpty) Navigator.pop(context);
+                        itemCount: _cart.length,
+                        itemBuilder: (context, i) {
+                          final item = _cart[i];
+                          return ListTile(
+                            title: Text(
+                              item['name'],
+                              style: TextStyle(fontSize: 16.sp),
+                            ),
+                            subtitle: Text(
+                              "${item['qty']} x ${formatter.format(item['price'])}",
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 20.sp,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _total -= (item['price'] * item['qty']);
+                                  _cart.removeAt(i);
+                                });
+                                setModalState(() {}); // Refresh the modal list
+                                if (_cart.isEmpty) Navigator.pop(context);
+                              },
+                            ),
+                          );
                         },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
@@ -129,12 +184,17 @@ class _BillingPageState extends State<BillingPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text("New Sale"),
+        title: Text(
+          "New Sale",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.indigo,
         actions: [
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: Icon(Icons.logout, color: Colors.white),
             tooltip: "Logout from this account",
             onPressed: () {
               showDialog(
@@ -188,96 +248,129 @@ class _BillingPageState extends State<BillingPage> {
       body: Column(
         children: [
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: DBProvider.db.getProducts(),
-              builder: (ctx, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                return ListView.builder(
-                  itemCount: snapshot.data!.length,
-                  itemBuilder: (context, i) {
-                    var item = snapshot.data![i];
-                    int id = item['id'];
-                    int stock = item['stock'];
-                    String itemName = item['name'];
-                    int currentCount = _itemCounters[id] ?? 0;
+            child: _isLoading && _products.isEmpty
+                ? Center(child: CircularProgressIndicator())
+                : _products.isEmpty
+                ? Center(
+                    child: Text("No products available. Add some in Stock."),
+                  )
+                : ListView.builder(
+                    itemCount: _products.length,
+                    itemBuilder: (context, i) {
+                      final item = _products[i];
+                      int id = item['id'];
+                      int stock = item['stock'];
+                      String itemName = item['name'];
+                      int currentCount = _itemCounters[id] ?? 0;
 
-                    return Card(
-                      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      child: ListTile(
-                        title: Text(
-                          item['name'],
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                      return Container(
+                        margin: EdgeInsets.symmetric(
+                          horizontal: 4.w,
+                          vertical: 0.8.h,
                         ),
-                        subtitle: Text(
-                          "Price: ${formatter.format(item['price'])} | \nStock: $stock",
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.remove_circle,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () => _updateCounter(id, -1, stock),
-                            ),
-                            Text(
-                              "$currentCount",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.add_circle,
-                                color: Colors.green,
-                              ),
-                              onPressed: (_itemCounters[id] ?? 0) < stock
-                                  ? () => _updateCounter(id, 1, stock)
-                                  : () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).hideCurrentSnackBar();
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            "Only $stock units of $itemName available in stock!",
-                                          ),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          duration: const Duration(seconds: 2),
-                                          margin: const EdgeInsets.only(
-                                            bottom: 132,
-                                            left: 16,
-                                            right: 16,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                            ),
-                            ElevatedButton(
-                              onPressed: currentCount > 0
-                                  ? () => _addToCart(item, context)
-                                  : null,
-                              child: Text("Add"),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                        child: Padding(
+                          padding: EdgeInsets.all(3.w),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['name'],
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16.sp,
+                                      ),
+                                    ),
+                                    SizedBox(height: 0.5.h),
+                                    Text(
+                                      "Price: ${formatter.format(item['price'])}",
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    Text(
+                                      "In Stock: $stock",
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        color: stock < 5
+                                            ? Colors.red
+                                            : Colors.green[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Modern Stepper
+                              Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () =>
+                                        _updateCounter(id, -1, stock),
+                                    icon: Icon(
+                                      Icons.remove_circle_outline,
+                                      color: Colors.redAccent,
+                                      size: 23.sp,
+                                    ),
+                                  ),
+                                  Text(
+                                    "$currentCount",
+                                    style: TextStyle(
+                                      fontSize: 15.sp,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: (_itemCounters[id] ?? 0) < stock
+                                        ? () => _updateCounter(id, 1, stock)
+                                        : null,
+                                    icon: Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.green,
+                                      size: 23.sp,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.indigo,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 2.w,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: currentCount > 0
+                                    ? () => _addToCart(item, context)
+                                    : null,
+                                child: Text(
+                                  "Add",
+                                  style: TextStyle(fontSize: 15.sp),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
           Divider(thickness: 2),
           Container(
@@ -287,13 +380,15 @@ class _BillingPageState extends State<BillingPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-
-                    // --- REPLACE YOUR OLD "Cart Items" TEXT WITH THIS ---
                     InkWell(
                       onTap: _showCartSheet, // Calls the function you created
                       child: Row(
                         children: [
-                          Icon(Icons.shopping_cart, color: Colors.indigo, size: 20.sp),
+                          Icon(
+                            Icons.shopping_cart,
+                            color: Colors.indigo,
+                            size: 20.sp,
+                          ),
                           SizedBox(width: 2.w),
                           Text(
                             "Items: ${_cart.length}",
@@ -352,7 +447,7 @@ class _BillingPageState extends State<BillingPage> {
                           },
                     child: Text(
                       "COMPLETE SALE",
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16, color: Colors.indigo),
                     ),
                   ),
                 ),

@@ -92,7 +92,10 @@ class DBProvider {
 
   Future<void> completeSale(List<Map<String, dynamic>> cartItems) async {
     final dbClient = await database;
-    double total = cartItems.fold(0, (sum, item) => sum + (item['price'] * item['qty']));
+    double total = cartItems.fold(
+      0,
+      (sum, item) => sum + (item['price'] * item['qty']),
+    );
     String itemsJson = jsonEncode(cartItems);
 
     await dbClient.transaction((txn) async {
@@ -167,6 +170,10 @@ class DBProvider {
   }
 }
 
+abstract class RefreshableState<T extends StatefulWidget> extends State<T> {
+  void refreshData();
+}
+
 // --- MAIN UI SCREEN ---
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -176,22 +183,38 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  final profitLabel = "\t\t\tProfit\nAnalytics";
-  // FIXED: These now point to the correct Widget classes
-  final List<Widget> _pages = [BillingPage(), InventoryPage(), DashboardPage()];
+
+  // 1. Use a list of GlobalKeys to talk to the pages
+  final List<GlobalKey<RefreshableState>> _keys = [
+    GlobalKey<RefreshableState>(), // Billing
+    GlobalKey<RefreshableState>(), // Inventory
+    GlobalKey<RefreshableState>(), // Analytics
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          BillingPage(key: _keys[0]),
+          InventoryPage(key: _keys[1]),
+          DashboardPage(key: _keys[2]),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: [
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          // 2. When tapping a tab, call the refresh method on that page
+          _keys[index].currentState?.refreshData();
+        },
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.receipt), label: "Billing"),
           BottomNavigationBarItem(icon: Icon(Icons.inventory), label: "Stock"),
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
-            label: profitLabel,
+            label: "Analytics",
           ),
         ],
       ),
@@ -206,7 +229,40 @@ class InventoryPage extends StatefulWidget {
   _InventoryPageState createState() => _InventoryPageState();
 }
 
-class _InventoryPageState extends State<InventoryPage> {
+class _InventoryPageState extends RefreshableState<InventoryPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+  // 1. Store the data in a variable instead of a FutureBuilder
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final data = await DBProvider.db.getProducts();
+    if (mounted) {
+      setState(() {
+        _products = data;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void refreshData() {
+    _loadData(); // Updates the list silently
+  }
+
+  // Use this for internal updates (like after adding a product)
+  void _refreshUI() {
+    _loadData();
+  }
+
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController stockController = TextEditingController();
@@ -240,7 +296,14 @@ class _InventoryPageState extends State<InventoryPage> {
               Navigator.pop(ctx);
               _refreshData();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("$name deleted successfully")),
+                SnackBar(
+                  content: Text("$name deleted successfully"),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
               );
             },
             child: Text("DELETE", style: TextStyle(color: Colors.white)),
@@ -334,88 +397,181 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   @override
+  void dispose() {
+    // Clean up memory
+    nameController.dispose();
+    priceController.dispose();
+    stockController.dispose();
+    costController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text("Inventory Management"),
+        title: Text(
+          "Inventory Management",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.indigo,
         actions: [
-          IconButton(icon: Icon(Icons.refresh), onPressed: _refreshData),
+          IconButton(
+            icon: Icon(Icons.refresh, color: Colors.white),
+            onPressed: _refreshData,
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showProductDialog(context),
-        child: Icon(Icons.add),
+        backgroundColor: Colors.indigo,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3.h)),
+        child: Icon(Icons.add, color: Colors.white),
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        key: _refreshKey,
-        future: DBProvider.db.getProducts(),
-        builder: (ctx, snapshot) {
-          if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.data!.isEmpty) {
-            return Center(child: Text("Stock is empty. Add products."));
-          }
-          return ListView.builder(
-            itemCount: snapshot.data!.length,
-            itemBuilder: (itemCtx, i) {
-              var p = snapshot.data![i];
-              return Card(
-                margin: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
-                child: ListTile(
-                  // --- TRIGGER DELETION ON LONG PRESS ---
-                  onLongPress: () =>
-                      _confirmDelete(context, p['id'], p['name']),
-                  leading: CircleAvatar(
-                    radius: 6.w,
-                    backgroundColor: p['stock'] < 5
-                        ? Colors.red
-                        : Colors.indigo,
-                    child: Text(
-                      "${p['stock']}",
-                      style: TextStyle(color: Colors.white, fontSize: 16.sp),
-                    ),
-                  ),
-                  title: Text(
-                    p['name'],
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(formatter.format(p['price'])),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton(
-                        onPressed: () async {
-                          await DBProvider.db.updateProduct(
-                            p['id'],
-                            p['name'],
-                            p['price'],
-                            p['cost'],
-                            p['stock'] + 5,
-                          );
-                          _refreshData();
-                        },
-                        child: Text(
-                          "+5",
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+      body: _isLoading && _products.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : FutureBuilder<List<Map<String, dynamic>>>(
+              key: _refreshKey,
+              future: DBProvider.db.getProducts(),
+              builder: (ctx, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.data!.isEmpty) {
+                  return Center(child: Text("Stock is empty. Add products."));
+                }
+                return ListView.builder(
+                  itemCount: snapshot.data!.length,
+                  itemBuilder: (itemCtx, i) {
+                    var p = snapshot.data![i];
+                    return Container(
+                      margin: EdgeInsets.symmetric(
+                        horizontal: 4.w,
+                        vertical: 0.8.h,
+                      ),
+                      padding: EdgeInsets.all(3.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            spreadRadius: 1,
                           ),
-                        ),
+                        ],
                       ),
-                      IconButton(
-                        icon: Icon(Icons.edit, color: Colors.indigo),
-                        onPressed: () =>
-                            _showProductDialog(context, product: p),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p['name'],
+                                      style: TextStyle(
+                                        fontSize: 16.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Price: ${formatter.format(p['price'])}",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 3.w,
+                                  vertical: 0.5.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: p['stock'] < 5
+                                      ? Colors.red[50]
+                                      : Colors.green[50],
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  "Stock: ${p['stock']}",
+                                  style: TextStyle(
+                                    color: p['stock'] < 5
+                                        ? Colors.red
+                                        : Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Divider(height: 2.h), // Separates info from actions
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment
+                                .spaceBetween, // Pushes buttons to opposite sides
+                            children: [
+                              TextButton.icon(
+                                onPressed: () async {
+                                  await DBProvider.db.updateProduct(
+                                    p['id'],
+                                    p['name'],
+                                    p['price'],
+                                    p['cost'],
+                                    p['stock'] + 5,
+                                  );
+                                  _refreshData();
+                                },
+                                icon: Icon(
+                                  Icons.add_box_outlined,
+                                  color: Colors.green,
+                                  size: 16.sp,
+                                ),
+                                label: Text(
+                                  "Refill +5",
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15.sp,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.edit_outlined,
+                                      color: Colors.indigo,
+                                      size: 20.sp,
+                                    ),
+                                    onPressed: () =>
+                                        _showProductDialog(context, product: p),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.redAccent,
+                                      size: 20.sp,
+                                    ),
+                                    onPressed: () => _confirmDelete(
+                                      context,
+                                      p['id'],
+                                      p['name'],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 }
