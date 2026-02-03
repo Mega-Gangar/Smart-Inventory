@@ -424,6 +424,7 @@ class _BillingPageState extends RefreshableState<BillingPage>
                         ? null
                         : () async {
                             await DBProvider.db.completeSale(_cart);
+                            await _fetchProducts(); //updating product's stock realtime
                             setState(() {
                               _cart = [];
                               _total = 0;

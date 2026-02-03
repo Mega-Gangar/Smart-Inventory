@@ -203,6 +203,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: Colors.indigo,
+        unselectedItemColor: Colors.grey,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
@@ -212,10 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.receipt), label: "Billing"),
           BottomNavigationBarItem(icon: Icon(Icons.inventory), label: "Stock"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: "Analytics",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Analytics")
         ],
       ),
     );
@@ -386,6 +385,7 @@ class _InventoryPageState extends RefreshableState<InventoryPage>
                   int.tryParse(stockController.text) ?? 0,
                 );
               }
+              _loadData(); //update the list instantly!
               Navigator.pop(dialogCtx);
               _refreshData();
             },
