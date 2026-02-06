@@ -1,12 +1,12 @@
+import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
-import 'package:intl/intl.dart';
+import 'package:smart_inventory/widgets/revenue_graph.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sizer/sizer.dart';
-import 'dart:convert';
-import 'pdf_generate.dart';
-import 'revenue_graph.dart';
-import 'main.dart';
+import 'package:smart_inventory/services/pdf_generate.dart';
+import 'package:smart_inventory/database/database_helper.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});

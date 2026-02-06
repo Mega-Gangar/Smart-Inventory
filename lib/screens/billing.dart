@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sizer/sizer.dart';
-import 'main.dart';
-
+import 'package:smart_inventory/main.dart';
+import 'package:smart_inventory/database/database_helper.dart';
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
   const BillingPage({super.key});

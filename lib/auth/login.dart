@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sizer/sizer.dart';
-import 'registration.dart';
-import 'validator.dart';
+import 'package:smart_inventory/auth/registration.dart';
+import 'package:smart_inventory/validator.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sizer/sizer.dart';
-import 'validator.dart';
+import 'package:smart_inventory/validator.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -137,7 +137,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 15),
               TextFormField(
-                style: TextStyle(fontSize: 12.sp),
+                style: TextStyle(fontSize: 16.sp),
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
@@ -152,7 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 15),
               TextFormField(
-                style: TextStyle(fontSize: 12.sp),
+                style: TextStyle(fontSize: 16.sp),
                 controller: _confirmPasswordController,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder(),hintText: "Minimum 8 characters required"),
