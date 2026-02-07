@@ -70,10 +70,11 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Sale #${sale['id']} Details",
+                  "Sale #${sale['id']}",
                   style: TextStyle(
-                    fontSize: 16.sp,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
+                    color: Colors.indigo,
                   ),
                 ),
                 IconButton(
@@ -91,12 +92,26 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   ...items.map(
                     (item) => ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(item['name']),
+                      title: Text(
+                        item['name'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15.sp,
+                        ),
+                      ),
                       subtitle: Text(
                         "${item['qty']} x ${formatter.format(item['price'])}",
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.black87,
+                        ),
                       ),
                       trailing: Text(
                         formatter.format(item['qty'] * item['price']),
+                        style: TextStyle(
+                          fontSize: 15.sp,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ),
@@ -108,18 +123,20 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Total Paid:",
+                  "TOTAL AMOUNT:",
                   style: TextStyle(
-                    fontSize: 16.sp,
+                    fontSize: 17.sp,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: Colors.grey[700],
                   ),
                 ),
                 Text(
                   formatter.format(sale['total']),
                   style: TextStyle(
-                    fontSize: 18.sp,
+                    fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
+                    color: Colors.black,
                   ),
                 ),
               ],
@@ -181,9 +198,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   void _showBusinessDetailsDialog() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Pre-fill controllers with existing data if available
     TextEditingController nameController = TextEditingController(
-      text: prefs.getString('company_name') ?? "Smart Billing",
+      text: prefs.getString('company_name') ?? "",
     );
     TextEditingController gstinController = TextEditingController(
       text: prefs.getString('gstin_number') ?? "",
@@ -192,50 +208,120 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Billing Details"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
           children: [
-            TextField(
-              controller: nameController,
-              style: TextStyle(fontSize: 16.sp),
-              decoration: InputDecoration(
-                labelText: "Company Name",
-                labelStyle: TextStyle(fontSize: 15.sp),
-                hintText: "Enter company name for billing",
-              ),
-            ),
-            SizedBox(height: 2.h),
-            TextField(
-              controller: gstinController,
-              style: TextStyle(fontSize: 16.sp),
-              decoration: InputDecoration(
-                labelText: "GSTIN Number",
-                labelStyle: TextStyle(fontSize: 15.sp),
-                hintText: "Enter GSTIN number",
-              ),
+            const Icon(Icons.business_center, color: Colors.indigo),
+            SizedBox(width: 10),
+            Text(
+              "Billing Profile",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.sp),
             ),
           ],
         ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Information provided here will appear on your generated PDF receipts.",
+                style: TextStyle(fontSize: 15.sp, color: Colors.grey[600]),
+              ),
+              SizedBox(height: 2.5.h),
+
+              // Company Name Field
+              _buildDialogField(
+                controller: nameController,
+                label: "Company Name",
+                hint: "e.g. My Awesome Store",
+                icon: Icons.store_mall_directory_outlined,
+              ),
+              SizedBox(height: 2.h),
+
+              // GSTIN Field
+              _buildDialogField(
+                controller: gstinController,
+                label: "GSTIN Number",
+                hint: "e.g. 22AAAAA0000A1Z5",
+                icon: Icons.receipt_long_outlined,
+              ),
+            ],
+          ),
+        ),
+        actionsPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("CANCEL"),
+            child: Text("CANCEL", style: TextStyle(color: Colors.grey[700])),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+            ),
             onPressed: () async {
+              if (nameController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Company Name cannot be empty!"),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+                return; // Stop execution
+              }
               await _saveBusinessDetails(
                 nameController.text,
                 gstinController.text,
               );
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Billing details saved!")),
+                const SnackBar(
+                  content: Text("Billing details updated!"),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
-            child: const Text("SAVE"),
+            child: const Text(
+              "SAVE DETAILS",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper Widget for consistent Dialog Input Fields
+  Widget _buildDialogField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      style: TextStyle(fontSize: 15.sp),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: Colors.indigo),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.indigo, width: 2),
+        ),
       ),
     );
   }

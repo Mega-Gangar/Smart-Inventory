@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:flutter/material.dart';
 import 'package:smart_inventory/main.dart';
 import 'package:smart_inventory/database/database_helper.dart';
 // --- 2. INVENTORY MODULE ---

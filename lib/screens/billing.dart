@@ -1,8 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sizer/sizer.dart';
+import 'package:flutter/material.dart';
 import 'package:smart_inventory/main.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_inventory/database/database_helper.dart';
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
@@ -260,7 +260,6 @@ class _BillingPageState extends RefreshableState<BillingPage>
                       final item = _products[i];
                       int id = item['id'];
                       int stock = item['stock'];
-                      String itemName = item['name'];
                       int currentCount = _itemCounters[id] ?? 0;
 
                       return Container(

@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:smart_inventory/main.dart';
 class RevenueGraph extends StatelessWidget {
   final List<Map<String, dynamic>> sales;

@@ -1,8 +1,8 @@
+import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_inventory/validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sizer/sizer.dart';
-import 'package:smart_inventory/validator.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});

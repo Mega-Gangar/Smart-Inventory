@@ -1,11 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:flutter/material.dart';
+import 'package:smart_inventory/auth/login.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_inventory/screens/billing.dart';
 import 'package:smart_inventory/screens/dashboard.dart';
-import 'package:smart_inventory/database/database_helper.dart';
 import 'package:smart_inventory/screens/inventory.dart';
-import 'package:smart_inventory/auth/login.dart';
+import 'package:smart_inventory/database/database_helper.dart';
 
 class SmartBillingApp extends StatelessWidget {
   const SmartBillingApp({super.key});
