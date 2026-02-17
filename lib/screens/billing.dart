@@ -4,6 +4,7 @@ import 'package:smart_inventory/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_inventory/database/database_helper.dart';
+
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
   const BillingPage({super.key});
@@ -17,6 +18,9 @@ class _BillingPageState extends RefreshableState<BillingPage>
   bool get wantKeepAlive => true;
   // 1. New variables to hold state locally
   List<Map<String, dynamic>> _products = [];
+  List<Map<String, dynamic>> _filteredProducts = []; // For Search
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
 
   @override
@@ -31,9 +35,28 @@ class _BillingPageState extends RefreshableState<BillingPage>
     if (mounted) {
       setState(() {
         _products = data;
+        _filteredProducts = data;
         _isLoading = false;
       });
     }
+  }
+
+  void _runFilter(String enteredKeyword) {
+    List<Map<String, dynamic>> results = [];
+    if (enteredKeyword.isEmpty) {
+      results = _products;
+    } else {
+      results = _products
+          .where(
+            (user) => user["name"].toLowerCase().contains(
+              enteredKeyword.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
+    setState(() {
+      _filteredProducts = results;
+    });
   }
 
   @override
@@ -187,12 +210,43 @@ class _BillingPageState extends RefreshableState<BillingPage>
     super.build(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "New Sale",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                cursorColor: Colors.white,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: "Search products...",
+                  hintStyle: TextStyle(color: Colors.white70),
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) => _runFilter(value),
+              )
+            : const Text(
+                "New Sale",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
         backgroundColor: Colors.indigo,
         actions: [
+          IconButton(
+            icon: Icon(
+              _isSearching ? Icons.close : Icons.search,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                  _runFilter(""); // Reset filter
+                }
+              });
+            },
+          ),
           IconButton(
             icon: Icon(Icons.logout, color: Colors.white),
             tooltip: "Logout from this account",
@@ -248,16 +302,31 @@ class _BillingPageState extends RefreshableState<BillingPage>
       body: Column(
         children: [
           Expanded(
-            child: _isLoading && _products.isEmpty
-                ? Center(child: CircularProgressIndicator())
-                : _products.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : (_isLoading == false && _products.isEmpty)
                 ? Center(
-                    child: Text("No products available. Add some in Stock."),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "No products available. Add some in Stock.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
+                : _filteredProducts.isEmpty
+                ? const Center(child: Text("No matching products found."))
                 : ListView.builder(
-                    itemCount: _products.length,
+                    itemCount: _filteredProducts.length,
                     itemBuilder: (context, i) {
-                      final item = _products[i];
+                      final item = _filteredProducts[i];
                       int id = item['id'];
                       int stock = item['stock'];
                       int currentCount = _itemCounters[id] ?? 0;

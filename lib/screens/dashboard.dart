@@ -331,7 +331,16 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       return const Center(child: CircularProgressIndicator());
     }
     if (_sales.isEmpty) {
-      return const Center(child: Text("No sales recorded yet."));
+      return Center(
+        child: Text(
+          "No sales recorded yet.",
+          style: TextStyle(
+            fontSize: 16.sp,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
     }
 
     double revenue = _sales.fold(
