@@ -7,10 +7,10 @@ import 'package:smart_inventory/database/database_helper.dart';
 class InventoryPage extends StatefulWidget {
   const InventoryPage({super.key});
   @override
-  _InventoryPageState createState() => _InventoryPageState();
+  InventoryPageState createState() => InventoryPageState();
 }
 
-class _InventoryPageState extends RefreshableState<InventoryPage>
+class InventoryPageState extends RefreshableState<InventoryPage>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
@@ -40,19 +40,15 @@ class _InventoryPageState extends RefreshableState<InventoryPage>
   }
 
   // Use this for internal updates (like after adding a product)
-  void _refreshUI() {
-    _loadData();
-  }
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController stockController = TextEditingController();
   final TextEditingController costController = TextEditingController();
-  Key _refreshKey = UniqueKey();
 
   void _refreshData() {
     setState(() {
-      _refreshKey = UniqueKey();
+      _loadData();
     });
   }
 
@@ -176,9 +172,9 @@ class _InventoryPageState extends RefreshableState<InventoryPage>
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
             onPressed: () async {
-              if (nameController.text.isEmpty || priceController.text.isEmpty)
+              if (nameController.text.isEmpty || priceController.text.isEmpty) {
                 return;
-
+              }
               if (isEditing) {
                 await DBProvider.db.updateProduct(
                   product['id'],
@@ -268,31 +264,23 @@ class _InventoryPageState extends RefreshableState<InventoryPage>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3.h)),
         child: Icon(Icons.add, color: Colors.white),
       ),
-      body: _isLoading && _products.isEmpty
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : FutureBuilder<List<Map<String, dynamic>>>(
-              key: _refreshKey,
-              future: DBProvider.db.getProducts(),
-              builder: (ctx, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.data!.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "Stock is empty. Add products.",
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: snapshot.data!.length,
-                  itemBuilder: (itemCtx, i) {
-                    var p = snapshot.data![i];
+          : _products.isEmpty
+          ? Center(
+        child: Text(
+          "Stock is empty. Add products.",
+          style: TextStyle(
+            fontSize: 16.sp,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      )
+          : ListView.builder(
+        itemCount: _products.length,
+        itemBuilder: (itemCtx, i) {
+          final p = _products[i];
                     return Container(
                       margin: EdgeInsets.symmetric(
                         horizontal: 4.w,
@@ -417,8 +405,6 @@ class _InventoryPageState extends RefreshableState<InventoryPage>
                       ),
                     );
                   },
-                );
-              },
             ),
     );
   }

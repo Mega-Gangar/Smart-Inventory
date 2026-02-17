@@ -48,7 +48,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   }
 
   //trigger UI refresh after a refund
-  void _refreshUI() => _fetchSales();
   void _showSaleDetails(BuildContext context, Map<String, dynamic> sale) {
     List<dynamic> items = [];
     if (sale['items'] != null) {
@@ -350,6 +349,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
     return RefreshIndicator(
       onRefresh: _fetchSales,
+      color: Colors.indigo,
       child: Column(
         children: [
           // Revenue Card
@@ -472,9 +472,9 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
   //Profit and Losses Tab
   Widget _buildProfitSummaryTab() {
-    if (_isLoading && _sales.isEmpty)
+    if (_isLoading && _sales.isEmpty) {
       return const Center(child: CircularProgressIndicator());
-
+    }
     double totalRevenue = 0;
     double totalCost = 0;
 
@@ -540,13 +540,24 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               fontWeight: FontWeight.bold,
             ),
           ),
-          trailing: Text(
-            formatter.format(amount),
-            style: TextStyle(
-              fontSize: isMain ? 18.sp : 16.sp,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isMain) Icon(
+                amount >= 0 ? Icons.trending_up : Icons.trending_down,
+                color: color,
+                size: 20.sp,
+              ),
+              SizedBox(width: 5),
+              Text(
+                formatter.format(amount),
+                style: TextStyle(
+                  fontSize: isMain ? 18.sp : 16.sp,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
           ),
         ),
       ),

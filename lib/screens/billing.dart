@@ -9,10 +9,10 @@ import 'package:smart_inventory/database/database_helper.dart';
 class BillingPage extends StatefulWidget {
   const BillingPage({super.key});
   @override
-  _BillingPageState createState() => _BillingPageState();
+  BillingPageState createState() => BillingPageState();
 }
 
-class _BillingPageState extends RefreshableState<BillingPage>
+class BillingPageState extends RefreshableState<BillingPage>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
@@ -64,7 +64,7 @@ class _BillingPageState extends RefreshableState<BillingPage>
     _fetchProducts(); // Silent background update
   }
 
-  Map<int, int> _itemCounters = {};
+  final Map<int, int> _itemCounters = {};
   List<Map<String, dynamic>> _cart = [];
   double _total = 0;
 
@@ -330,6 +330,7 @@ class _BillingPageState extends RefreshableState<BillingPage>
                       int id = item['id'];
                       int stock = item['stock'];
                       int currentCount = _itemCounters[id] ?? 0;
+                      bool isOutOfStock = stock <= 0;
 
                       return Container(
                         margin: EdgeInsets.symmetric(
@@ -403,12 +404,12 @@ class _BillingPageState extends RefreshableState<BillingPage>
                                     ),
                                   ),
                                   IconButton(
-                                    onPressed: (_itemCounters[id] ?? 0) < stock
+                                    onPressed: (!isOutOfStock && currentCount < stock)
                                         ? () => _updateCounter(id, 1, stock)
-                                        : null,
+                                        : null, // Disables if out of stock
                                     icon: Icon(
                                       Icons.add_circle_outline,
-                                      color: Colors.green,
+                                      color: isOutOfStock ? Colors.grey : Colors.green, // Visual feedback
                                       size: 23.sp,
                                     ),
                                   ),
@@ -416,7 +417,7 @@ class _BillingPageState extends RefreshableState<BillingPage>
                               ),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.indigo,
+                                  backgroundColor: isOutOfStock ? Colors.grey[300] : Colors.indigo,
                                   foregroundColor: Colors.white,
                                   padding: EdgeInsets.symmetric(
                                     horizontal: 2.w,
@@ -425,11 +426,11 @@ class _BillingPageState extends RefreshableState<BillingPage>
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                                onPressed: currentCount > 0
+                                onPressed: (currentCount > 0 && !isOutOfStock)
                                     ? () => _addToCart(item, context)
                                     : null,
                                 child: Text(
-                                  "Add",
+                                  isOutOfStock ? "Sold Out" : "Add",
                                   style: TextStyle(fontSize: 15.sp),
                                 ),
                               ),
@@ -497,6 +498,7 @@ class _BillingPageState extends RefreshableState<BillingPage>
                               _cart = [];
                               _total = 0;
                               _itemCounters.clear();
+                              _runFilter(_searchController.text);
                             });
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
