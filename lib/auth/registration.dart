@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:smart_inventory/validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:email_validator/email_validator.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -23,9 +24,9 @@ class _RegisterPageState extends State<RegisterPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match!")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match!")));
       return;
     }
 
@@ -67,7 +68,8 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -75,7 +77,8 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       // 1. Get the UserCredential object
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
 
       // 2. Check if the user is NOT new (already registered)
       bool isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
@@ -106,12 +109,11 @@ class _RegisterPageState extends State<RegisterPage> {
       await GoogleSignIn().signOut();
 
       if (mounted) Navigator.pop(context);
-
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google Sign-In failed: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Google Sign-In failed: $e")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -132,8 +134,21 @@ class _RegisterPageState extends State<RegisterPage> {
               SizedBox(height: 2.h),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: "Email", border: OutlineInputBorder()),
-                validator: (v) => (v == null || !v.contains("@")) ? "Invalid email" : null,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Email is required";
+                  }
+                  if (!EmailValidator.validate(value.trim())) {
+                    return "Please enter a valid email address";
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 15),
               TextFormField(
@@ -141,13 +156,21 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(),
-                    hintText: "Minimum 8 characters required",
+                  labelText: "Password",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_outline),
+                  hintText: "Minimum 8 characters required",
                   suffixIcon: IconButton(
-                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                  ),),
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () => setState(
+                      () => _isPasswordVisible = !_isPasswordVisible,
+                    ),
+                  ),
+                ),
                 validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 15),
@@ -155,7 +178,12 @@ class _RegisterPageState extends State<RegisterPage> {
                 style: TextStyle(fontSize: 16.sp),
                 controller: _confirmPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(labelText: "Confirm Password", border: OutlineInputBorder(),hintText: "Minimum 8 characters required"),
+                decoration: const InputDecoration(
+                  labelText: "Confirm Password",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_reset),
+                  hintText: "Minimum 8 characters required",
+                ),
                 validator: AppValidators.validatePassword,
               ),
               const SizedBox(height: 30),
@@ -164,10 +192,15 @@ class _RegisterPageState extends State<RegisterPage> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _handleRegister,
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                  ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("REGISTER", style: TextStyle(color: Colors.white)),
+                      : const Text(
+                          "REGISTER",
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -187,11 +220,16 @@ class _RegisterPageState extends State<RegisterPage> {
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _handleGoogleSignIn,
                 icon: Image.asset('lib/res/img.png', height: 24),
-                label: const Text("Continue with Google", style: TextStyle(color: Colors.black87)),
+                label: const Text(
+                  "Continue with Google",
+                  style: TextStyle(color: Colors.black87),
+                ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: Size(double.infinity, 6.h),
                   side: const BorderSide(color: Colors.grey),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ],

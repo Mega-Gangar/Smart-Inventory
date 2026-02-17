@@ -4,6 +4,7 @@ import 'package:smart_inventory/validator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_inventory/auth/registration.dart';
+import 'package:email_validator/email_validator.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -50,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-  
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
@@ -61,7 +62,8 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -69,11 +71,10 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
-
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Google Sign-In failed: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Google Sign-In failed: $e")));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -92,23 +93,38 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image(image:AssetImage("lib/res/icon_circle.png"),height: 12.h),
+                Image(
+                  image: AssetImage("lib/res/icon_circle.png"),
+                  height: 12.h,
+                ),
                 SizedBox(height: 2.h),
                 Text(
                   "Smart Inventory Login",
-                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 SizedBox(height: 4.h),
 
                 // Email Field
                 TextFormField(
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
                     labelText: "Email",
                     prefixIcon: Icon(Icons.email),
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) => (v == null || !v.contains("@")) ? "Enter valid email" : null,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Email is required";
+                    }
+                    if (!EmailValidator.validate(value.trim())) {
+                      return "Please enter a valid email address";
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -121,8 +137,14 @@ class _LoginPageState extends State<LoginPage> {
                     prefixIcon: const Icon(Icons.lock),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () => setState(
+                        () => _isPasswordVisible = !_isPasswordVisible,
+                      ),
                     ),
                   ),
                   validator: AppValidators.validatePassword,
@@ -135,10 +157,15 @@ class _LoginPageState extends State<LoginPage> {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                    ),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("LOGIN", style: TextStyle(color: Colors.white)),
+                        : const Text(
+                            "LOGIN",
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -148,14 +175,19 @@ class _LoginPageState extends State<LoginPage> {
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _handleGoogleSignIn,
                   icon: Image.asset('lib/res/img.png', height: 24),
-                  label: const Text("Sign in with Google", style: TextStyle(color: Colors.black87)),
+                  label: const Text(
+                    "Sign in with Google",
+                    style: TextStyle(color: Colors.black87),
+                  ),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
                     side: const BorderSide(color: Colors.grey),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20), 
+                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -164,12 +196,17 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const RegisterPage()),
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterPage(),
+                          ),
                         );
                       },
                       child: const Text(
                         "Register Now",
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
                       ),
                     ),
                   ],
