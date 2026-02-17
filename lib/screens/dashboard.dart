@@ -10,7 +10,6 @@ import 'package:smart_inventory/database/database_helper.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
-  // Change to StatefulWidget
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
@@ -19,8 +18,11 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-  // 1. Variable state management
+
   List<Map<String, dynamic>> _sales = [];
+  List<Map<String, dynamic>> _filteredSales = [];
+  final _searchController = TextEditingController();
+
   bool _isLoading = true;
   bool _isGraphVisible = false;
   final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
@@ -28,10 +30,36 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   @override
   void initState() {
     super.initState();
-    _fetchSales(); // Initial load
+    _fetchSales();
+    _searchController.addListener(_onSearchChanged);
   }
 
-  // 2. Fetch sales silently
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _filterSales();
+  }
+
+  void _filterSales() {
+    final query = _searchController.text.trim().toLowerCase();
+    setState(() {
+      if (query.isNotEmpty) {
+        _filteredSales = _sales.where((sale) {
+          final id = sale['id']?.toString().toLowerCase() ?? '';
+          return id.contains(query);
+        }).toList()
+          ..sort((a, b) => (a['id'] ?? 0).compareTo(b['id'] ?? 0));
+      } else {
+        _filteredSales = List.from(_sales);
+      }
+    });
+  }
+
   Future<void> _fetchSales() async {
     final data = await DBProvider.db.getSales();
     if (mounted) {
@@ -39,15 +67,15 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
         _sales = data;
         _isLoading = false;
       });
+      _filterSales();
     }
   }
 
   @override
   void refreshData() {
-    _fetchSales(); // Triggered by HomeScreen on tab switch
+    _fetchSales();
   }
 
-  //trigger UI refresh after a refund
   void _showSaleDetails(BuildContext context, Map<String, dynamic> sale) {
     List<dynamic> items = [];
     if (sale['items'] != null) {
@@ -55,7 +83,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     }
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Allows sheet to take more space
+      isScrollControlled: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -141,11 +169,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               ],
             ),
             SizedBox(height: 3.h),
-
-            // --- PRINT BUTTON ---
             Row(
               children: [
-                // 1.Print Button
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -157,8 +182,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                     label: Text("PRINT", style: TextStyle(color: Colors.white)),
                   ),
                 ),
-                SizedBox(width: 4.w), // Space between buttons
-                // 2. New Share Button
+                SizedBox(width: 4.w),
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
@@ -166,7 +190,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                       padding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     onPressed: () async {
-                      // Re-use PDF generation logic to get the bytes
                       final pdfBytes = await PdfHelper.generateReceiptBytes(
                         sale,
                       );
@@ -187,7 +210,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     );
   }
 
-  //Edit documents details for printing
   Future<void> _saveBusinessDetails(String name, String gstin) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('company_name', name);
@@ -196,14 +218,12 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
   void _showBusinessDetailsDialog() async {
     final prefs = await SharedPreferences.getInstance();
-
     TextEditingController nameController = TextEditingController(
       text: prefs.getString('company_name') ?? "",
     );
     TextEditingController gstinController = TextEditingController(
       text: prefs.getString('gstin_number') ?? "",
     );
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -228,8 +248,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 style: TextStyle(fontSize: 15.sp, color: Colors.grey[600]),
               ),
               SizedBox(height: 2.5.h),
-
-              // Company Name Field
               _buildDialogField(
                 controller: nameController,
                 label: "Company Name",
@@ -237,8 +255,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 icon: Icons.store_mall_directory_outlined,
               ),
               SizedBox(height: 2.h),
-
-              // GSTIN Field
               _buildDialogField(
                 controller: gstinController,
                 label: "GSTIN Number",
@@ -270,7 +286,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                     backgroundColor: Colors.redAccent,
                   ),
                 );
-                return; // Stop execution
+                return;
               }
               await _saveBusinessDetails(
                 nameController.text,
@@ -297,7 +313,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     );
   }
 
-  // Helper Widget for consistent Dialog Input Fields
   Widget _buildDialogField({
     required TextEditingController controller,
     required String label,
@@ -341,97 +356,150 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
         ),
       );
     }
-
     double revenue = _sales.fold(
       0,
       (sum, item) => sum + (item['total'] as num).toDouble(),
     );
-
     return RefreshIndicator(
-      onRefresh: _fetchSales,
+      onRefresh: () async {
+        _searchController.clear();
+        await _fetchSales();
+      },
       color: Colors.indigo,
-      child: Column(
-        children: [
-          // Revenue Card
-          Card(
-            margin: const EdgeInsets.all(16),
-            color: Colors.indigo[50],
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  title: const Text(
-                    "Total Revenue",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
-                    ),
-                  ),
-                  subtitle: Text(
-                    formatter.format(revenue),
-                    style: TextStyle(
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo,
-                    ),
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(
-                      _isGraphVisible
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                      color: Colors.indigo,
-                      size: 30,
-                    ),
-                    onPressed: () =>
-                        setState(() => _isGraphVisible = !_isGraphVisible),
-                  ),
-                ),
-                if (_isGraphVisible) RevenueGraph(sales: _sales),
-              ],
-            ),
-          ),
-          // Sales List
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _sales.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, i) {
-                final sale = _sales[i];
-                return ListTile(
-                  title: GestureDetector(
-                    onTap: () => _showSaleDetails(context, sale),
-                    onLongPress: () => _confirmRefund(context, sale),
-                    child: Text(
-                      "Sale #${sale['id']}",
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            Card(
+              margin: const EdgeInsets.all(16),
+              color: Colors.indigo[50],
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    title: const Text(
+                      "Total Revenue",
                       style: TextStyle(
-                        color: Colors.indigo,
-                        decoration: TextDecoration.underline,
                         fontWeight: FontWeight.bold,
-                        fontSize: 17.sp,
+                        color: Colors.indigo,
                       ),
                     ),
-                  ),
-                  subtitle: Text(
-                    sale['date'].toString().split('.')[0],
-                    style: TextStyle(fontSize: 15.sp),
-                  ),
-                  trailing: Text(
-                    formatter.format(sale['total']),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14.sp,
+                    subtitle: Text(
+                      formatter.format(revenue),
+                      style: TextStyle(
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
+                      ),
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        _isGraphVisible
+                            ? Icons.keyboard_arrow_up
+                            : Icons.keyboard_arrow_down,
+                        color: Colors.indigo,
+                        size: 30,
+                      ),
+                      onPressed: () =>
+                          setState(() => _isGraphVisible = !_isGraphVisible),
                     ),
                   ),
-                );
-              },
+                  if (_isGraphVisible) RevenueGraph(sales: _sales),
+                ],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search),
+                  hintText: "Search Sale ID...",
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            if (_filteredSales.isEmpty && _searchController.text.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                child: Center(
+                  child: Text(
+                    "No matching sales found.",
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              )
+            else if (_filteredSales.isEmpty && _sales.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                child: Center(
+                  child: Text(
+                    "No sales to display.",
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _filteredSales.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final sale = _filteredSales[i];
+                  return ListTile(
+                    title: GestureDetector(
+                      onTap: () => _showSaleDetails(context, sale),
+                      onLongPress: () => _confirmRefund(context, sale),
+                      child: Text(
+                        "Sale #${sale['id']}",
+                        style: TextStyle(
+                          color: Colors.indigo,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17.sp,
+                        ),
+                      ),
+                    ),
+                    subtitle: Text(
+                      sale['date'].toString().split('.')[0],
+                      style: TextStyle(fontSize: 15.sp),
+                    ),
+                    trailing: Text(
+                      formatter.format(sale['total']),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -455,7 +523,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               await DBProvider.db.returnSale(sale);
               Navigator.pop(ctx);
               _fetchSales();
-              setState(() {}); // Refresh UI
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Sale returned successfully!")),
               );
@@ -470,29 +537,24 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     );
   }
 
-  //Profit and Losses Tab
   Widget _buildProfitSummaryTab() {
     if (_isLoading && _sales.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     double totalRevenue = 0;
     double totalCost = 0;
-
     for (var sale in _sales) {
       totalRevenue += (sale['total'] as num).toDouble();
       if (sale['items'] != null) {
         List<dynamic> items = jsonDecode(sale['items']);
         for (var item in items) {
-          totalCost +=
-              ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+          totalCost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
               ((item['qty'] as num?)?.toInt() ?? 0);
         }
       }
     }
-
     double grossProfit = totalRevenue - totalCost;
     bool isLoss = grossProfit < 0;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -526,8 +588,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     bool isMain = false,
   }) {
     return Card(
-      elevation: isMain ? 4 : 2, // Slightly increased for better depth
-      shadowColor: color.withValues(alpha: 0.2), // Thematic shadow
+      elevation: isMain ? 4 : 2,
+      shadowColor: color.withOpacity(0.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       margin: EdgeInsets.symmetric(vertical: 1.h),
       child: Padding(
@@ -543,11 +605,12 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isMain) Icon(
-                amount >= 0 ? Icons.trending_up : Icons.trending_down,
-                color: color,
-                size: 20.sp,
-              ),
+              if (isMain)
+                Icon(
+                  amount >= 0 ? Icons.trending_up : Icons.trending_down,
+                  color: color,
+                  size: 20.sp,
+                ),
               SizedBox(width: 5),
               Text(
                 formatter.format(amount),
@@ -568,21 +631,17 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     DateTime now = DateTime.now();
     double dailyRevenue = 0, dailyCost = 0;
     double monthlyRevenue = 0, monthlyCost = 0;
-
     for (var sale in sales) {
       DateTime saleDate = DateTime.parse(sale['date']);
       double saleRev = (sale['total'] as num).toDouble();
       double saleCost = 0;
-
       if (sale['items'] != null) {
         List<dynamic> items = jsonDecode(sale['items']);
         for (var item in items) {
-          saleCost +=
-              ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+          saleCost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
               ((item['qty'] as num?)?.toInt() ?? 0);
         }
       }
-
       if (saleDate.year == now.year &&
           saleDate.month == now.month &&
           saleDate.day == now.day) {
@@ -594,10 +653,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
         monthlyCost += saleCost;
       }
     }
-
     double todayNet = dailyRevenue - dailyCost;
     double monthNet = monthlyRevenue - monthlyCost;
-
     return Column(
       children: [
         _buildPeriodTile(
@@ -651,7 +708,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           bottom: TabBar(
             indicatorColor: Colors.indigo,
             labelColor: Colors.white,
-            unselectedLabelColor: Colors.grey,
+            unselectedLabelColor: Colors.grey[400],
             tabs: [
               Tab(icon: Icon(Icons.show_chart), text: "Sales Summary"),
               Tab(icon: Icon(Icons.currency_rupee), text: "Profits/Losses"),

@@ -14,6 +14,9 @@ class InventoryPageState extends RefreshableState<InventoryPage>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+  List<Map<String, dynamic>> _filteredProducts = []; // For Search
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
   // 1. Store the data in a variable instead of a FutureBuilder
   List<Map<String, dynamic>> _products = [];
   bool _isLoading = true;
@@ -29,11 +32,28 @@ class InventoryPageState extends RefreshableState<InventoryPage>
     if (mounted) {
       setState(() {
         _products = data;
+        _filteredProducts = data;
         _isLoading = false;
       });
     }
   }
-
+  void _runFilter(String enteredKeyword) {
+    List<Map<String, dynamic>> results = [];
+    if (enteredKeyword.isEmpty) {
+      results = _products;
+    } else {
+      results = _products
+          .where(
+            (user) => user["name"].toLowerCase().contains(
+          enteredKeyword.toLowerCase(),
+        ),
+      )
+          .toList();
+    }
+    setState(() {
+      _filteredProducts = results;
+    });
+  }
   @override
   void refreshData() {
     _loadData(); // Updates the list silently
@@ -246,12 +266,42 @@ class InventoryPageState extends RefreshableState<InventoryPage>
     super.build(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: _isSearching
+            ? TextField(
+          controller: _searchController,
+          autofocus: true,
+          cursorColor: Colors.white,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: "Search products...",
+            hintStyle: TextStyle(color: Colors.white70),
+            border: InputBorder.none,
+          ),
+          onChanged: (value) => _runFilter(value),
+        )
+            : const Text(
           "Inventory Management",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: Colors.indigo,
-        actions: [
+        actions: [IconButton(
+          icon: Icon(
+            _isSearching ? Icons.close : Icons.search,
+            color: Colors.white,
+          ),
+          onPressed: () {
+            setState(() {
+              _isSearching = !_isSearching;
+              if (!_isSearching) {
+                _searchController.clear();
+                _runFilter(""); // Reset filter
+              }
+            });
+          },
+        ),
           IconButton(
             icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _refreshData,
@@ -266,21 +316,18 @@ class InventoryPageState extends RefreshableState<InventoryPage>
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _products.isEmpty
+          : _filteredProducts.isEmpty // Check filtered list, not master list
           ? Center(
         child: Text(
-          "Stock is empty. Add products.",
-          style: TextStyle(
-            fontSize: 16.sp,
-            color: Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
+          _isSearching ? "No matching products found." : "Stock is empty. Add products.",
+          style: TextStyle(fontSize: 16.sp, color: Colors.grey[600]),
         ),
       )
           : ListView.builder(
-        itemCount: _products.length,
+        // FIX: Use _filteredProducts here!
+        itemCount: _filteredProducts.length,
         itemBuilder: (itemCtx, i) {
-          final p = _products[i];
+          final p = _filteredProducts[i];
                     return Container(
                       margin: EdgeInsets.symmetric(
                         horizontal: 4.w,
