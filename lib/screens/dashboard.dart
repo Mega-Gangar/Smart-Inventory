@@ -218,7 +218,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   }
 
   void _showBusinessDetailsDialog() async {
-    final _formKey = GlobalKey<FormState>();
+    final formKey = GlobalKey<FormState>();
     final prefs = await SharedPreferences.getInstance();
     TextEditingController nameController = TextEditingController(
       text: prefs.getString('company_name') ?? "",
@@ -241,7 +241,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           ],
         ),
         content: Form(
-          key: _formKey,
+          key: formKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -286,10 +286,10 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
             ),
             onPressed: () async {
-              if (_formKey.currentState!.validate()) {
+              if (formKey.currentState!.validate()) {
                 await _saveBusinessDetails(
                   nameController.text,
-                  gstinController.text,
+                  gstinController.text.toUpperCase(),
                 );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -601,7 +601,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   }) {
     return Card(
       elevation: isMain ? 4 : 2,
-      shadowColor: color.withOpacity(0.2),
+      shadowColor: color.withValues(alpha:0.2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       margin: EdgeInsets.symmetric(vertical: 1.h),
       child: Padding(
