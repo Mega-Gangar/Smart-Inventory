@@ -123,7 +123,7 @@ class BillingPageState extends RefreshableState<BillingPage>
       SnackBar(
         content: Text("Added $qtyToAdd x ${product['name']} to cart"),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
       ),
@@ -507,7 +507,7 @@ class BillingPageState extends RefreshableState<BillingPage>
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                duration: const Duration(seconds: 2),
+                                duration: const Duration(seconds: 1),
                                 margin: const EdgeInsets.only(
                                   bottom: 132,
                                   left: 16,

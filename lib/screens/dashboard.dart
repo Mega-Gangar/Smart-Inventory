@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
+import 'package:smart_inventory/validator.dart';
 import 'package:printing/printing.dart';
 import 'package:smart_inventory/widgets/revenue_graph.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_inventory/services/pdf_generate.dart';
 import 'package:smart_inventory/database/database_helper.dart';
+import 'package:smart_inventory/widgets/bargraph.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -52,8 +54,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
         _filteredSales = _sales.where((sale) {
           final id = sale['id']?.toString().toLowerCase() ?? '';
           return id.contains(query);
-        }).toList()
-          ..sort((a, b) => (a['id'] ?? 0).compareTo(b['id'] ?? 0));
+        }).toList()..sort((a, b) => (a['id'] ?? 0).compareTo(b['id'] ?? 0));
       } else {
         _filteredSales = List.from(_sales);
       }
@@ -217,6 +218,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   }
 
   void _showBusinessDetailsDialog() async {
+    final _formKey = GlobalKey<FormState>();
     final prefs = await SharedPreferences.getInstance();
     TextEditingController nameController = TextEditingController(
       text: prefs.getString('company_name') ?? "",
@@ -238,30 +240,35 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
             ),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Information provided here will appear on your generated PDF receipts.",
-                style: TextStyle(fontSize: 15.sp, color: Colors.grey[600]),
-              ),
-              SizedBox(height: 2.5.h),
-              _buildDialogField(
-                controller: nameController,
-                label: "Company Name",
-                hint: "e.g. My Awesome Store",
-                icon: Icons.store_mall_directory_outlined,
-              ),
-              SizedBox(height: 2.h),
-              _buildDialogField(
-                controller: gstinController,
-                label: "GSTIN Number",
-                hint: "e.g. 22AAAAA0000A1Z5",
-                icon: Icons.receipt_long_outlined,
-              ),
-            ],
+        content: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Information provided here will appear on your generated PDF receipts.",
+                  style: TextStyle(fontSize: 15.sp, color: Colors.grey[600]),
+                ),
+                SizedBox(height: 2.5.h),
+                _buildDialogField(
+                  controller: nameController,
+                  label: "Company Name",
+                  hint: "e.g. My Awesome Store",
+                  icon: Icons.store_mall_directory_outlined,
+                  validate: AppValidators.validateCompanyName,
+                ),
+                SizedBox(height: 2.h),
+                _buildDialogField(
+                  controller: gstinController,
+                  label: "GSTIN Number",
+                  hint: "e.g. 22AAAAA0000A1Z5",
+                  icon: Icons.receipt_long_outlined,
+                  validate: AppValidators.validateGSTIN,
+                ),
+              ],
+            ),
           ),
         ),
         actionsPadding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -279,26 +286,19 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
             ),
             onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
+              if (_formKey.currentState!.validate()) {
+                await _saveBusinessDetails(
+                  nameController.text,
+                  gstinController.text,
+                );
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("Company Name cannot be empty!"),
-                    backgroundColor: Colors.redAccent,
+                    content: Text("Billing details updated!"),
+                    behavior: SnackBarBehavior.floating,
                   ),
                 );
-                return;
               }
-              await _saveBusinessDetails(
-                nameController.text,
-                gstinController.text,
-              );
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Billing details updated!"),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
             },
             child: const Text(
               "SAVE DETAILS",
@@ -318,10 +318,14 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     required String label,
     required String hint,
     required IconData icon,
+    String? Function(String?)? validate,
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
       style: TextStyle(fontSize: 15.sp),
+      validator: validate,
+      autovalidateMode:
+          AutovalidateMode.onUserInteraction, // Shows error while typing
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -441,10 +445,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 child: Center(
                   child: Text(
                     "No matching sales found.",
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 16.sp, color: Colors.grey[600]),
                   ),
                 ),
               )
@@ -454,10 +455,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 child: Center(
                   child: Text(
                     "No sales to display.",
-                    style: TextStyle(
-                      fontSize: 16.sp,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 16.sp, color: Colors.grey[600]),
                   ),
                 ),
               )
@@ -548,7 +546,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       if (sale['items'] != null) {
         List<dynamic> items = jsonDecode(sale['items']);
         for (var item in items) {
-          totalCost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+          totalCost +=
+              ((item['cost'] as num?)?.toDouble() ?? 0.0) *
               ((item['qty'] as num?)?.toInt() ?? 0);
         }
       }
@@ -560,6 +559,19 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            "Weekly Performance",
+            style: TextStyle(fontSize: 17.sp, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          // ADD THE NEW GRAPH HERE
+          Card(
+            elevation: 0,
+            color: Colors.grey[50],
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            child: ProfitBarChart(sales: _sales),
+          ),
+          const SizedBox(height: 20),
           _buildSummaryCard("Total Revenue", totalRevenue, Colors.green),
           _buildSummaryCard("Total Cost Price", totalCost, Colors.orange),
           const Divider(height: 30, thickness: 2),
@@ -638,7 +650,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       if (sale['items'] != null) {
         List<dynamic> items = jsonDecode(sale['items']);
         for (var item in items) {
-          saleCost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+          saleCost +=
+              ((item['cost'] as num?)?.toDouble() ?? 0.0) *
               ((item['qty'] as num?)?.toInt() ?? 0);
         }
       }

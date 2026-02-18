@@ -40,13 +40,18 @@ class PdfHelper {
                       pw.Text("Item", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                       pw.Text("Qty", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                       pw.Text("Price", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                      pw.Text("Total", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
                     ]),
                     pw.TableRow(children: [pw.SizedBox(height: 4), pw.SizedBox(), pw.SizedBox()]), // Row spacing
-                    ...items.map((item) => pw.TableRow(children: [
+                    ...items.map((item) {
+            final double lineTotal = (item['qty'] as num).toDouble() * (item['price'] as num).toDouble();
+                      return pw.TableRow(children: [
+
                       pw.Text(item['name'], style: pw.TextStyle(fontSize: 9)),
                       pw.Text("${item['qty']}", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 9)),
                       pw.Text("${item['price']}", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 9)),
-                    ])),
+                      pw.Text(lineTotal.toStringAsFixed(2), textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 8)),
+                    ]);}),
                   ],
                 ),
 
@@ -100,13 +105,18 @@ class PdfHelper {
                       pw.Text("Item", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                       pw.Text("Qty", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
                       pw.Text("Price", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                      pw.Text("Total", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
                     ]),
                     pw.TableRow(children: [pw.SizedBox(height: 4), pw.SizedBox(), pw.SizedBox()]), // Row spacing
-                    ...items.map((item) => pw.TableRow(children: [
-                      pw.Text(item['name'], style: pw.TextStyle(fontSize: 9)),
-                      pw.Text("${item['qty']}", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 9)),
-                      pw.Text("${item['price']}", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 9)),
-                    ])),
+                    ...items.map((item) {
+                      final double lineTotal = (item['qty'] as num).toDouble() * (item['price'] as num).toDouble();
+                      return pw.TableRow(children: [
+
+                        pw.Text(item['name'], style: pw.TextStyle(fontSize: 9)),
+                        pw.Text("${item['qty']}", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 9)),
+                        pw.Text("${item['price']}", textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 9)),
+                        pw.Text(lineTotal.toStringAsFixed(2), textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 8)),
+                      ]);}),
                   ],
                 ),
 
