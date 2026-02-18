@@ -61,26 +61,31 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      // 1. Initialize the Singleton
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
 
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      // 2. Authenticate
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      // 3. Get ID Token (Authentication)
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
 
+      // 4. Get Access Token (Authorization)
+      var authorization = await googleUser.authorizationClient.authorizationForScopes(['email']);
+      authorization ??= await googleUser.authorizationClient.authorizeScopes(['email']);
+      final accessToken = authorization.accessToken;
+
+      // 5. Create Firebase Credential
       final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        accessToken: accessToken,
+        idToken: idToken,
       );
-
-      // 1. Get the UserCredential object
+      // 6. Sign in to Firebase to check user status
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
-
-      // 2. Check if the user is NOT new (already registered)
+      // 7. Check if the user is NOT new (already registered)
       bool isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
 
       if (!isNewUser) {
@@ -104,16 +109,24 @@ class _RegisterPageState extends State<RegisterPage> {
           );
         }
       }
-      //Sign in again in login page
+
+      // 8. Sign out again so they have to actually log in on the login page
       await FirebaseAuth.instance.signOut();
-      await GoogleSignIn().signOut();
+      await googleSignIn.signOut(); // Updated to use the initialized instance
 
       if (mounted) Navigator.pop(context);
+
     } catch (e) {
+      // Catch the v7 cancellation exception safely
+      if (e.toString().toLowerCase().contains('canceled') ||
+          e.toString().toLowerCase().contains('cancelled')) {
+        return;
+      }
+
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Google Sign-In failed: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Google Sign-In failed: $e"))
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -266,25 +266,25 @@ class BillingPageState extends RefreshableState<BillingPage>
                     TextButton(
                       onPressed: () async {
                         try {
-                          Navigator.pop(context);
+                          Navigator.pop(context); // Close the dialog
                           // 1. Sign out from Firebase Auth
                           await FirebaseAuth.instance.signOut();
-                          // 2. Clear Google Sign-In session (Important if you used Google login)
-                          // This prevents the app from auto-selecting the same Google account next time
-                          final googleSignIn = GoogleSignIn();
-                          if (await googleSignIn.isSignedIn()) {
-                            await googleSignIn.signOut();
-                          }
-                          // It pops everything until it reaches the initial route (the StreamBuilder)
+                          // 2. Clear Google Sign-In session safely (v7.2.0 compatible)
+                          final googleSignIn = GoogleSignIn.instance;
+                          await googleSignIn.initialize();
+                          await googleSignIn.signOut();
+                          // 3. Navigate back to login screen
                           if (context.mounted) {
                             Navigator.of(
                               context,
                             ).popUntil((route) => route.isFirst);
                           }
                         } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error in logging out")),
-                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Error logging out: $e")),
+                            );
+                          }
                         }
                       },
                       child: const Text(
@@ -404,12 +404,15 @@ class BillingPageState extends RefreshableState<BillingPage>
                                     ),
                                   ),
                                   IconButton(
-                                    onPressed: (!isOutOfStock && currentCount < stock)
+                                    onPressed:
+                                        (!isOutOfStock && currentCount < stock)
                                         ? () => _updateCounter(id, 1, stock)
                                         : null, // Disables if out of stock
                                     icon: Icon(
                                       Icons.add_circle_outline,
-                                      color: isOutOfStock ? Colors.grey : Colors.green, // Visual feedback
+                                      color: isOutOfStock
+                                          ? Colors.grey
+                                          : Colors.green, // Visual feedback
                                       size: 23.sp,
                                     ),
                                   ),
@@ -417,7 +420,9 @@ class BillingPageState extends RefreshableState<BillingPage>
                               ),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isOutOfStock ? Colors.grey[300] : Colors.indigo,
+                                  backgroundColor: isOutOfStock
+                                      ? Colors.grey[300]
+                                      : Colors.indigo,
                                   foregroundColor: Colors.white,
                                   padding: EdgeInsets.symmetric(
                                     horizontal: 2.w,

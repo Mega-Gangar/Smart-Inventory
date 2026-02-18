@@ -55,26 +55,42 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      // 1. Use the Singleton instance
+      final googleSignIn = GoogleSignIn.instance;
 
-      if (googleUser == null) {
-        // User cancelled the sign-in
-        return;
-      }
+      // 2. Initialization is now MANDATORY in v7.x before doing anything else
+      await googleSignIn.initialize();
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      // 3. signIn() has been replaced by authenticate()
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
 
+      // 4. Get the ID Token (Authentication)
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+
+      // 5. Get the Access Token (Authorization)
+      // In v7.x, you must explicitly authorize scopes to get an access token
+      var authorization = await googleUser.authorizationClient.authorizationForScopes(['email']);
+      authorization ??= await googleUser.authorizationClient.authorizeScopes(['email']);
+
+      final accessToken = authorization.accessToken;
+
+      // 6. Build the Firebase Credential
       final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        accessToken: accessToken,
+        idToken: idToken,
       );
-
+      // 7. Sign in to Firebase
       await FirebaseAuth.instance.signInWithCredential(credential);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Google Sign-In failed: $e")));
+      // We can ignore the cancellation error so the user doesn't get a red snackbar.
+      if (e.toString().toLowerCase().contains('canceled') ||
+          e.toString().toLowerCase().contains('cancelled')) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign-In failed: $e"))
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
