@@ -16,7 +16,6 @@
     * Modern **Material 3** design with custom theming.
     * **Adaptive Icons** for a native look and feel on Android.
     * Interactive SnackBars with floating behavior to keep the UI accessible.
-* **Secure Access:** Integrated with **Firebase Auth** and **Google Sign-In** for authorized user access.
 
 ---
 
@@ -24,7 +23,6 @@
 
 * **Frontend:** [Flutter](https://flutter.dev) (Dart)
 * **Database:** [sqflite](https://pub.dev/packages/sqflite) (SQLite)
-* **Authentication:** Firebase Auth & Google Sign-In
 * **Design:** Material 3 with adaptive icon support.
 
 ---
@@ -33,7 +31,6 @@
 
 ### Prerequisites
 * Flutter SDK installed.
-* A Firebase project (for Authentication features).
 
 ### Steps
 1.  **Clone the repo:**
@@ -44,14 +41,11 @@
     ```bash
     flutter pub get
     ```
-3.  **Configure Android Signing:**
-    * Add your **SHA-1** fingerprint to your Firebase Console.
-    * Place your `google-services.json` in `android/app/`.
-4.  **Generate Icon Assets:**
+3.  **Generate Icon Assets:**
     ```bash
     flutter pub run flutter_launcher_icons
     ```
-5.  **Run the app:**
+4.  **Run the app:**
     ```bash
     flutter run
     ```
