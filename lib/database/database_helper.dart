@@ -128,4 +128,10 @@ class DBProvider {
       await txn.delete('sales', where: 'id = ?', whereArgs: [sale['id']]);
     });
   }
+  static Future<void> closeDatabase() async {
+    if (_database != null) {
+      await _database!.close();
+      _database = null; // Clear the reference so it re-initializes next time
+    }
+  }
 }
