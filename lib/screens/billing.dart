@@ -1,8 +1,6 @@
 import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/main.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_inventory/database/database_helper.dart';
 
 // --- 1. BILLING MODULE ---
@@ -245,130 +243,6 @@ class BillingPageState extends RefreshableState<BillingPage>
                   _runFilter(""); // Reset filter
                 }
               });
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: Colors.white),
-            tooltip: "Logout from this account",
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  titlePadding: EdgeInsets.zero,
-                  title: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: const BoxDecoration(
-                      color: Colors.indigo,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.logout_rounded, color: Colors.white),
-                        const SizedBox(width: 12),
-                        Text(
-                          "Logout",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 15),
-                      Text(
-                        "Are you sure you want to log out? Any unsaved sale progress will be lost.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 15.sp,
-                          color: Colors.grey[700],
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ),
-                  actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
-                  actions: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            child: Text(
-                              "CANCEL",
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red[600],
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            onPressed: () async {
-                              try {
-                                Navigator.pop(context); // Close the dialog
-                                // 1. Sign out from Firebase Auth
-                                await FirebaseAuth.instance.signOut();
-                                // 2. Clear Google Sign-In session safely (v7.2.0 compatible)
-                                final googleSignIn = GoogleSignIn.instance;
-                                await googleSignIn.initialize();
-                                await googleSignIn.signOut();
-                                // 3. Navigate back to login screen
-                                if (context.mounted) {
-                                  Navigator.of(
-                                    context,
-                                  ).popUntil((route) => route.isFirst);
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Error logging out: $e"),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: const Text(
-                              "LOGOUT",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
             },
           ),
         ],

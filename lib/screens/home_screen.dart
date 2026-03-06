@@ -1,7 +1,5 @@
 import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
-import 'package:smart_inventory/auth/login.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smart_inventory/screens/billing.dart';
 import 'package:smart_inventory/screens/dashboard.dart';
 import 'package:smart_inventory/screens/inventory.dart';
@@ -16,15 +14,7 @@ class SmartBillingApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
-          home: StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return const HomeScreen();
-              }
-              return const LoginPage();
-            },
-          ),
+          home: const HomeScreen()
         );
       },
     );
