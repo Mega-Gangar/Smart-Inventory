@@ -2,6 +2,7 @@ import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/main.dart';
 import 'package:smart_inventory/database/database_helper.dart';
+import 'package:smart_inventory/services/qr_upi.dart';
 
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
@@ -445,30 +446,38 @@ class BillingPageState extends RefreshableState<BillingPage>
                     onPressed: _cart.isEmpty
                         ? null
                         : () async {
-                            await DBProvider.db.completeSale(_cart);
-                            await _fetchProducts(); //updating product's stock realtime
-                            setState(() {
-                              _cart = [];
-                              _total = 0;
-                              _itemCounters.clear();
-                              _runFilter(_searchController.text);
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Sale Successfully Processed"),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                duration: const Duration(seconds: 1),
-                                margin: const EdgeInsets.only(
-                                  bottom: 132,
-                                  left: 16,
-                                  right: 16,
-                                ),
-                              ),
-                            );
-                          },
+                      double finalAmount = _total;
+
+                      // 1. Show the QR Dialog and WAIT for the user's choice
+                      bool? isPaid = await QrUpi.showUPIDialog(context, finalAmount);
+
+                      // 2. Only proceed if the user clicked "PAID SUCCESSFULLY"
+                      if (isPaid == true) {
+                        // Process Sale in DB
+                        await DBProvider.db.completeSale(_cart);
+                        await _fetchProducts();
+
+                        // Clear the UI
+                        setState(() {
+                          _cart = [];
+                          _total = 0;
+                          _itemCounters.clear();
+                          _runFilter(_searchController.text);
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Sale Successfully Completed")),
+                        );
+                      } else {
+                        // User clicked close or used back gesture
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Sale Cancelled / Payment Not Confirmed"),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    },
                     child: Text(
                       "COMPLETE SALE",
                       style: TextStyle(fontSize: 16, color: Colors.indigo),

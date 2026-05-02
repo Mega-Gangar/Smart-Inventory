@@ -213,10 +213,12 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     );
   }
 
-  Future<void> _saveBusinessDetails(String name, String gstin) async {
+  Future<void> _saveBusinessDetails(String name, String gstin,String upiId,String holderName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('company_name', name);
     await prefs.setString('gstin_number', gstin);
+    await prefs.setString('upiId',upiId);
+    await prefs.setString('upi_holderName',holderName);
   }
 
   void _showBusinessDetailsDialog() async {
@@ -227,6 +229,12 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     );
     TextEditingController gstinController = TextEditingController(
       text: prefs.getString('gstin_number') ?? "",
+    );
+    TextEditingController upiIdController = TextEditingController(
+      text: prefs.getString('upiId') ?? "",
+    );
+    TextEditingController upiHolderNameController = TextEditingController(
+      text: prefs.getString('upi_holderName') ?? "",
     );
     showDialog(
       context: context,
@@ -269,6 +277,22 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   icon: Icons.receipt_long_outlined,
                   validate: AppValidators.validateGSTIN,
                 ),
+                SizedBox(height: 2.h),
+                _buildDialogField(
+                  controller: upiIdController,
+                  label: "UPI ID",
+                  hint: "e.g. username@bankname",
+                  icon: Icons.payments,
+                  validate: AppValidators.validateUpiData,
+                ),
+                SizedBox(height: 2.h),
+                _buildDialogField(
+                  controller: upiHolderNameController,
+                  hint:'',
+                  label: "UPI ID Holder Name",
+                  icon: Icons.payments,
+                  validate: AppValidators.validateHolderName,
+                ),
               ],
             ),
           ),
@@ -292,6 +316,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 await _saveBusinessDetails(
                   nameController.text,
                   gstinController.text.toUpperCase(),
+                  upiIdController.text,
+                  upiHolderNameController.text,
                 );
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
