@@ -213,12 +213,17 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     );
   }
 
-  Future<void> _saveBusinessDetails(String name, String gstin,String upiId,String holderName) async {
+  Future<void> _saveBusinessDetails(
+    String name,
+    String gstin,
+    String upiId,
+    String holderName,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('company_name', name);
     await prefs.setString('gstin_number', gstin);
-    await prefs.setString('upiId',upiId);
-    await prefs.setString('upi_holderName',holderName);
+    await prefs.setString('upiId', upiId);
+    await prefs.setString('upi_holderName', holderName);
   }
 
   void _showBusinessDetailsDialog() async {
@@ -288,7 +293,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 SizedBox(height: 2.h),
                 _buildDialogField(
                   controller: upiHolderNameController,
-                  hint:'',
+                  hint: '',
                   label: "UPI ID Holder Name",
                   icon: Icons.payments,
                   validate: AppValidators.validateHolderName,
@@ -1091,7 +1096,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           actions: [
             IconButton(
               icon: const Icon(Icons.edit_document, color: Colors.white),
-              tooltip: 'Edit Printing Format',
+              tooltip: 'Edit Billing Format',
               onPressed: () => _showBusinessDetailsDialog(),
             ),
             IconButton(

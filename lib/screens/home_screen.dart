@@ -14,23 +14,29 @@ class SmartBillingApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: ThemeData(primarySwatch: Colors.indigo, useMaterial3: true),
-          home: const HomeScreen()
+          home: const HomeScreen(),
         );
       },
     );
   }
 }
 
-
 // --- MAIN UI SCREEN ---
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialIndex;
+  const HomeScreen({super.key, this.initialIndex = 0});
   @override
   HomeScreenState createState() => HomeScreenState();
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the index based on what was passed
+    _currentIndex = widget.initialIndex;
+  }
 
   // 1. Use a list of GlobalKeys to talk to the pages
   final List<GlobalKey<RefreshableState>> _keys = [

@@ -446,38 +446,45 @@ class BillingPageState extends RefreshableState<BillingPage>
                     onPressed: _cart.isEmpty
                         ? null
                         : () async {
-                      double finalAmount = _total;
+                            double finalAmount = _total;
 
-                      // 1. Show the QR Dialog and WAIT for the user's choice
-                      bool? isPaid = await QrUpi.showUPIDialog(context, finalAmount);
+                            // 1. Show the QR Dialog and WAIT for the user's choice
+                            bool? isPaid = await QrUpi.showUPIDialog(
+                              context,
+                              finalAmount,
+                            );
 
-                      // 2. Only proceed if the user clicked "PAID SUCCESSFULLY"
-                      if (isPaid == true) {
-                        // Process Sale in DB
-                        await DBProvider.db.completeSale(_cart);
-                        await _fetchProducts();
+                            // 2. Only proceed if the user clicked "PAID SUCCESSFULLY"
+                            if (isPaid == true) {
+                              // Process Sale in DB
+                              await DBProvider.db.completeSale(_cart);
+                              await _fetchProducts();
 
-                        // Clear the UI
-                        setState(() {
-                          _cart = [];
-                          _total = 0;
-                          _itemCounters.clear();
-                          _runFilter(_searchController.text);
-                        });
+                              // Clear the UI
+                              setState(() {
+                                _cart = [];
+                                _total = 0;
+                                _itemCounters.clear();
+                                _runFilter(_searchController.text);
+                              });
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Sale Successfully Completed")),
-                        );
-                      } else {
-                        // User clicked close or used back gesture
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Sale Cancelled / Payment Not Confirmed"),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                      }
-                    },
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Sale Successfully Completed"),
+                                ),
+                              );
+                            } else {
+                              // User clicked close or used back gesture
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "Sale Cancelled or UPI Setup Required",
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          },
                     child: Text(
                       "COMPLETE SALE",
                       style: TextStyle(fontSize: 16, color: Colors.indigo),
