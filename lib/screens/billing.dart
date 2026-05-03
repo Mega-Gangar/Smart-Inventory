@@ -471,6 +471,7 @@ class BillingPageState extends RefreshableState<BillingPage>
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text("Sale Successfully Completed"),
+                                  backgroundColor: Colors.green,
                                 ),
                               );
                             } else {

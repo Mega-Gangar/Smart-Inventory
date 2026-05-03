@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/database/database_backup.dart';
+import 'package:smart_inventory/services/update_services.dart';
 import 'package:smart_inventory/validator.dart';
 import 'package:printing/printing.dart';
 import 'package:smart_inventory/widgets/revenue_graph.dart';
@@ -1106,6 +1107,11 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               ),
               tooltip: 'Backup & Restore',
               onPressed: () => _showBackupRestoreDialog(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.system_update, color: Colors.white),
+              tooltip: 'Check for Updates',
+              onPressed: () => UpdateService.checkForUpdates(context),
             ),
           ],
           bottom: TabBar(
