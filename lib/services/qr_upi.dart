@@ -178,7 +178,7 @@ class QrUpi {
                   );
                 },
                 child: Text(
-                  isConfigured ? "PAID SUCCESSFULLY" : "GO TO ANALYTICS",
+                  isConfigured ? "PAID SUCCESSFULLY" : "GO TO SETTINGS",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
