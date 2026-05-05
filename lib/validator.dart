@@ -26,4 +26,20 @@ class AppValidators {
     if (value == null || value.trim().isEmpty) return "Company Name cannot be empty!";
     return null;
   }
+  static String? validateHolderName(String? value){
+    if (value == null || value.trim().isEmpty) return "Holder Name cannot be empty!";
+    return null;
+  }
+  static String? validateUpiData(String? upiId) {
+    // 1. Basic VPA Regex Validation
+    final upiRegex = RegExp(r'^[\w.-]+@[\w.-]+$');
+
+    if (upiId == null || upiId.trim().isEmpty) {
+      return "UPI ID cannot be empty";
+    }
+    if (!upiRegex.hasMatch(upiId)) {
+      return "Invalid UPI ID format (e.g., name@bank)";
+    }
+    return null; // Validation passed
+  }
 }

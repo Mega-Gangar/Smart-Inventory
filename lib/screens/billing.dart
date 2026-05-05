@@ -1,9 +1,8 @@
 import 'package:sizer/sizer.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_inventory/main.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:smart_inventory/database/database_helper.dart';
+import 'package:smart_inventory/services/qr_upi.dart';
 
 // --- 1. BILLING MODULE ---
 class BillingPage extends StatefulWidget {
@@ -208,17 +207,24 @@ class BillingPageState extends RefreshableState<BillingPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // Check theme once at the top of build
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final appBarTheme = Theme.of(context).appBarTheme;
+
     return Scaffold(
       appBar: AppBar(
         title: _isSearching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                cursorColor: Colors.white,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                cursorColor: appBarTheme.foregroundColor,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
                   hintText: "Search products...",
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(
+                    color: appBarTheme.foregroundColor?.withValues(alpha: 0.7),
+                  ),
                   border: InputBorder.none,
                 ),
                 onChanged: (value) => _runFilter(value),
@@ -230,7 +236,9 @@ class BillingPageState extends RefreshableState<BillingPage>
                   color: Colors.white,
                 ),
               ),
-        backgroundColor: Colors.indigo,
+        // Keep indigo for AppBar to maintain branding in both modes
+        backgroundColor: appBarTheme.backgroundColor,
+        iconTheme: appBarTheme.iconTheme,
         actions: [
           IconButton(
             icon: Icon(
@@ -242,133 +250,9 @@ class BillingPageState extends RefreshableState<BillingPage>
                 _isSearching = !_isSearching;
                 if (!_isSearching) {
                   _searchController.clear();
-                  _runFilter(""); // Reset filter
+                  _runFilter("");
                 }
               });
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: Colors.white),
-            tooltip: "Logout from this account",
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  titlePadding: EdgeInsets.zero,
-                  title: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: const BoxDecoration(
-                      color: Colors.indigo,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.logout_rounded, color: Colors.white),
-                        const SizedBox(width: 12),
-                        Text(
-                          "Logout",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 15),
-                      Text(
-                        "Are you sure you want to log out? Any unsaved sale progress will be lost.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 15.sp,
-                          color: Colors.grey[700],
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                  ),
-                  actionsPadding: const EdgeInsets.fromLTRB(15, 0, 15, 15),
-                  actions: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            child: Text(
-                              "CANCEL",
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red[600],
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            onPressed: () async {
-                              try {
-                                Navigator.pop(context); // Close the dialog
-                                // 1. Sign out from Firebase Auth
-                                await FirebaseAuth.instance.signOut();
-                                // 2. Clear Google Sign-In session safely (v7.2.0 compatible)
-                                final googleSignIn = GoogleSignIn.instance;
-                                await googleSignIn.initialize();
-                                await googleSignIn.signOut();
-                                // 3. Navigate back to login screen
-                                if (context.mounted) {
-                                  Navigator.of(
-                                    context,
-                                  ).popUntil((route) => route.isFirst);
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Error logging out: $e"),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: const Text(
-                              "LOGOUT",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
             },
           ),
         ],
@@ -380,19 +264,13 @@ class BillingPageState extends RefreshableState<BillingPage>
                 ? const Center(child: CircularProgressIndicator())
                 : (_isLoading == false && _products.isEmpty)
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "No products available. Add some in Stock.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      "No products available. Add some in Stock.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        color: isDark ? Colors.white70 : Colors.grey[600],
+                      ),
                     ),
                   )
                 : _filteredProducts.isEmpty
@@ -412,13 +290,15 @@ class BillingPageState extends RefreshableState<BillingPage>
                           vertical: 0.8.h,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(15),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
+                              color: Colors.black.withValues(
+                                alpha: isDark ? 0.2 : 0.04,
+                              ),
                               blurRadius: 8,
-                              offset: Offset(0, 4),
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -442,7 +322,9 @@ class BillingPageState extends RefreshableState<BillingPage>
                                       "Price: ${formatter.format(item['price'])}",
                                       style: TextStyle(
                                         fontSize: 14.sp,
-                                        color: Colors.grey[600],
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.grey[600],
                                       ),
                                     ),
                                     Text(
@@ -450,15 +332,17 @@ class BillingPageState extends RefreshableState<BillingPage>
                                       style: TextStyle(
                                         fontSize: 14.sp,
                                         color: stock < 5
-                                            ? Colors.red
-                                            : Colors.green[700],
+                                            ? Colors.redAccent
+                                            : (isDark
+                                                  ? Colors.greenAccent[400]
+                                                  : Colors.green[700]),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              // Modern Stepper
+                              // Stepper
                               Row(
                                 children: [
                                   IconButton(
@@ -481,12 +365,14 @@ class BillingPageState extends RefreshableState<BillingPage>
                                     onPressed:
                                         (!isOutOfStock && currentCount < stock)
                                         ? () => _updateCounter(id, 1, stock)
-                                        : null, // Disables if out of stock
+                                        : null,
                                     icon: Icon(
                                       Icons.add_circle_outline,
                                       color: isOutOfStock
                                           ? Colors.grey
-                                          : Colors.green, // Visual feedback
+                                          : (isDark
+                                                ? Colors.greenAccent
+                                                : Colors.green),
                                       size: 23.sp,
                                     ),
                                   ),
@@ -495,15 +381,17 @@ class BillingPageState extends RefreshableState<BillingPage>
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: isOutOfStock
-                                      ? Colors.grey[300]
+                                      ? (isDark
+                                            ? Colors.grey[800]
+                                            : Colors.grey[300])
                                       : Colors.indigo,
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 2.w,
-                                  ),
+                                  foregroundColor: isOutOfStock
+                                      ? Colors.grey[500]
+                                      : Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
+                                  elevation: 0,
                                 ),
                                 onPressed: (currentCount > 0 && !isOutOfStock)
                                     ? () => _addToCart(item, context)
@@ -520,21 +408,30 @@ class BillingPageState extends RefreshableState<BillingPage>
                     },
                   ),
           ),
-          Divider(thickness: 2),
+
+          // Checkout Section - Adapted for Dark Mode
+          Divider(
+            thickness: 1,
+            color: isDark ? Colors.white10 : Colors.grey[300],
+          ),
           Container(
             padding: EdgeInsets.all(4.w),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+            ),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     InkWell(
-                      onTap: _showCartSheet, // Calls the function you created
+                      onTap: _showCartSheet,
                       child: Row(
                         children: [
+                          // Icon adapts to the primary brand color
                           Icon(
                             Icons.shopping_cart,
-                            color: Colors.indigo,
+                            color: isDark ? Colors.white : colorScheme.primary,
                             size: 20.sp,
                           ),
                           SizedBox(width: 2.w),
@@ -543,20 +440,19 @@ class BillingPageState extends RefreshableState<BillingPage>
                             style: TextStyle(
                               fontSize: 16.sp,
                               fontWeight: FontWeight.bold,
-                              color: Colors.indigo,
+                              color: isDark ? Colors.white : Colors.indigo,
                               decoration: TextDecoration.underline,
                             ),
                           ),
                         ],
                       ),
                     ),
-
                     Text(
                       "Total: ${formatter.format(_total)}",
                       style: TextStyle(
                         fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.indigo,
+                        color: isDark ? Colors.white : Colors.indigo,
                       ),
                     ),
                   ],
@@ -566,38 +462,56 @@ class BillingPageState extends RefreshableState<BillingPage>
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 15),
+                      backgroundColor: isDark ? colorScheme.surfaceBright : Colors.indigo,
+                      foregroundColor: isDark
+                          ? Colors.white
+                          : colorScheme.onPrimary,
+
+                      disabledBackgroundColor: isDark
+                          ? Colors.grey[800]
+                          : Colors.grey[300],
+                      disabledForegroundColor: isDark
+                          ? Colors.grey[600]
+                          : Colors.grey[500],
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: _cart.isEmpty
                         ? null
                         : () async {
-                            await DBProvider.db.completeSale(_cart);
-                            await _fetchProducts(); //updating product's stock realtime
-                            setState(() {
-                              _cart = [];
-                              _total = 0;
-                              _itemCounters.clear();
-                              _runFilter(_searchController.text);
-                            });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Sale Successfully Processed"),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                duration: const Duration(seconds: 1),
-                                margin: const EdgeInsets.only(
-                                  bottom: 132,
-                                  left: 16,
-                                  right: 16,
-                                ),
-                              ),
+                            double finalAmount = _total;
+                            bool? isPaid = await QrUpi.showUPIDialog(
+                              context,
+                              finalAmount,
                             );
+                            if (isPaid == true) {
+                              await DBProvider.db.completeSale(_cart);
+                              await _fetchProducts();
+                              setState(() {
+                                _cart = [];
+                                _total = 0;
+                                _itemCounters.clear();
+                                _runFilter(_searchController.text);
+                              });
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Sale Successfully Completed"),
+                                  backgroundColor: Colors.green,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
                           },
-                    child: Text(
+                    child: const Text(
                       "COMPLETE SALE",
-                      style: TextStyle(fontSize: 16, color: Colors.indigo),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

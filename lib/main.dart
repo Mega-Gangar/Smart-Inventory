@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:smart_inventory/services/theme_provider.dart';
 import 'firebase_options.dart';
 import 'package:smart_inventory/screens/home_screen.dart';
 
@@ -11,5 +13,10 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(const SmartBillingApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const SmartBillingApp(),
+    ),
+  );
 }
