@@ -49,7 +49,7 @@ class QrUpi {
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(
                     color: isDark ? colorScheme.surfaceBright : Colors.indigo,
-                    borderRadius: const BorderRadius.vertical(
+                    borderRadius: BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
                   ),
@@ -127,7 +127,7 @@ class QrUpi {
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
                         color: isDark
-                            ? Colors.indigoAccent[100]
+                            ? Colors.white
                             : Colors.indigo,
                       ),
                     ),

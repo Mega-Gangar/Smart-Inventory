@@ -70,7 +70,9 @@ class SettingsPage extends StatelessWidget {
                 icon: themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
                 title: "Dark Mode",
                 subtitle: "Reduce glare and save battery",
-                onTap: () {},
+                onTap: () {
+                  themeProvider.toggleTheme(!themeProvider.isDarkMode);
+                },
                 trailing: Switch(
                   value: themeProvider.isDarkMode,
                   activeThumbColor: colorScheme.primary,

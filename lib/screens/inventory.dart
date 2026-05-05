@@ -160,7 +160,7 @@ class InventoryPageState extends RefreshableState<InventoryPage>
       stockController.clear();
       costController.clear();
     }
-
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
@@ -219,7 +219,7 @@ class InventoryPageState extends RefreshableState<InventoryPage>
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
+              backgroundColor:isDark ? colorScheme.surfaceBright : Colors.indigo,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
