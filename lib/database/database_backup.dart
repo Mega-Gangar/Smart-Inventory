@@ -20,7 +20,7 @@ class DatabaseBackupHelper {
   static Future<bool> importDatabase(BuildContext context) async {
     try {
       // 1. Open the file picker for the user to select the backup file
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         dialogTitle: 'Select Database Backup',
         type: FileType.any, // Android/iOS can be strict about .db extensions, so 'any' is safest
       );
