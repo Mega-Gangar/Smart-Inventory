@@ -88,4 +88,4 @@ The app uses a relational SQLite structure:
 <img src="https://github.com/Mega-Gangar/Smart-Inventory/blob/main/screenshots/photo_8.jpg" width=300 alt="print layout"/>
 
 ## Try the Application
-- **Switch to the ```feat``` branch and try the apk**
+- **Switch to the ```feat``` branch and try latest apk having latest features**
