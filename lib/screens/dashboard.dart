@@ -506,38 +506,11 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       return const Center(child: CircularProgressIndicator());
     }
 
-    double totalRevenue = 0;
-    double totalCost = 0;
-
-    for (var sale in _sales) {
-      totalRevenue += (sale['total'] as num).toDouble();
-      if (sale['items'] != null) {
-        List<dynamic> items = jsonDecode(sale['items']);
-        for (var item in items) {
-          totalCost +=
-              ((item['cost'] as num?)?.toDouble() ?? 0.0) *
-              ((item['qty'] as num?)?.toInt() ?? 0);
-        }
-      }
-    }
-
-    double grossProfit = totalRevenue - totalCost;
-    bool isLoss = grossProfit < 0;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Weekly Performance",
-            style: TextStyle(
-              fontSize: 17.sp,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface, // Adaptive heading
-            ),
-          ),
-          const SizedBox(height: 10),
           // Adapted Graph Container
           Card(
             elevation: 0,
@@ -548,147 +521,13 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
             ),
             child: ProfitBarChart(sales: _sales),
           ),
-          const SizedBox(height: 20),
-          _buildSummaryCard(
-            "Total Revenue",
-            totalRevenue,
-            isDark ? Colors.greenAccent[400]! : Colors.green,
-          ),
-          _buildSummaryCard(
-            "Total Cost Price",
-            totalCost,
-            isDark ? Colors.orangeAccent[200]! : Colors.orange,
-          ),
           const Divider(height: 30, thickness: 1),
-          _buildSummaryCard(
-            isLoss ? "Total Loss" : "Total Profit",
-            grossProfit.abs(), // Use absolute value for display
-            isLoss
-                ? (isDark ? Colors.redAccent[200]! : Colors.red)
-                : (isDark ? Colors.tealAccent[400]! : Colors.teal),
-            isMain: true,
-          ),
-          SizedBox(height: 2.h),
-          Text(
-            "Profit Breakdown",
-            style: TextStyle(
-              fontSize: 17.sp,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          SizedBox(height: 1.5.h),
-          _buildPeriodBreakdown(_sales),
+          ProfitBreakdownWidget(sales: _sales), //available in /widgets/bargraph.dart
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(
-    String title,
-    double amount,
-    Color color, {
-    bool isMain = false,
-  }) {
-    return Card(
-      elevation: isMain ? 4 : 2,
-      shadowColor: color.withValues(alpha: 0.2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      margin: EdgeInsets.symmetric(vertical: 1.h),
-      child: Padding(
-        padding: EdgeInsets.all(3.w),
-        child: ListTile(
-          title: Text(
-            title,
-            style: TextStyle(
-              fontSize: isMain ? 17.sp : 16.sp,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isMain)
-                Icon(
-                  amount >= 0 ? Icons.trending_up : Icons.trending_down,
-                  color: color,
-                  size: 20.sp,
-                ),
-              SizedBox(width: 5),
-              Text(
-                formatter.format(amount),
-                style: TextStyle(
-                  fontSize: isMain ? 18.sp : 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPeriodBreakdown(List<Map<String, dynamic>> sales) {
-    DateTime now = DateTime.now();
-    double dailyRevenue = 0, dailyCost = 0;
-    double monthlyRevenue = 0, monthlyCost = 0;
-    for (var sale in sales) {
-      DateTime saleDate = DateTime.parse(sale['date']);
-      double saleRev = (sale['total'] as num).toDouble();
-      double saleCost = 0;
-      if (sale['items'] != null) {
-        List<dynamic> items = jsonDecode(sale['items']);
-        for (var item in items) {
-          saleCost +=
-              ((item['cost'] as num?)?.toDouble() ?? 0.0) *
-              ((item['qty'] as num?)?.toInt() ?? 0);
-        }
-      }
-      if (saleDate.year == now.year &&
-          saleDate.month == now.month &&
-          saleDate.day == now.day) {
-        dailyRevenue += saleRev;
-        dailyCost += saleCost;
-      }
-      if (saleDate.year == now.year && saleDate.month == now.month) {
-        monthlyRevenue += saleRev;
-        monthlyCost += saleCost;
-      }
-    }
-    double todayNet = dailyRevenue - dailyCost;
-    double monthNet = monthlyRevenue - monthlyCost;
-    return Column(
-      children: [
-        _buildPeriodTile(
-          todayNet < 0 ? "Today's Loss" : "Today's Profit",
-          todayNet,
-        ),
-        _buildPeriodTile(
-          monthNet < 0 ? "Month's Loss" : "Month's Profit",
-          monthNet,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPeriodTile(String label, double amount) {
-    return ListTile(
-      title: Text(
-        label,
-        style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold),
-      ),
-      trailing: Text(
-        formatter.format(amount),
-        style: TextStyle(
-          fontSize: 14.sp,
-          fontWeight: FontWeight.bold,
-          color: amount >= 0 ? Colors.teal : Colors.red,
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
