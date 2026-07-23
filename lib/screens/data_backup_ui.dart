@@ -4,15 +4,18 @@ import 'package:sizer/sizer.dart';
 import '../database/database_backup.dart';
 
 class DataBackupUi {
+  DataBackupUi._(); // Prevent instantiation
+
   static void showBackupRestoreDialog(BuildContext context) {
     // Theme references
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
+        backgroundColor: theme.dialogTheme.backgroundColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titlePadding: EdgeInsets.zero,
         title: Container(
@@ -83,7 +86,7 @@ class DataBackupUi {
             child: Text(
               "CLOSE",
               style: TextStyle(
-                color: isDark ? Colors.white54 : Colors.grey[600],
+                color: isDark ? Colors.white : Colors.grey[600],
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -94,20 +97,21 @@ class DataBackupUi {
   }
 
   static void _confirmImport(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
+        backgroundColor: theme.dialogTheme.backgroundColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titlePadding: EdgeInsets.zero,
         title: Container(
           padding: EdgeInsets.all(5.w),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.red, // Semantic error color for warnings
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Row(
             children: [
@@ -145,8 +149,8 @@ class DataBackupUi {
                   fontSize: 14.5.sp,
                   height: 1.5,
                 ),
-                children: [
-                  const TextSpan(text: "This action will "),
+                children: const [
+                  TextSpan(text: "This action will "),
                   TextSpan(
                     text: "permanently delete ",
                     style: TextStyle(
@@ -154,7 +158,7 @@ class DataBackupUi {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const TextSpan(text: "all sales, products, and inventory data."),
+                  TextSpan(text: "all sales, products, and inventory data."),
                 ],
               ),
             ),
@@ -187,7 +191,13 @@ class DataBackupUi {
                   onPressed: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     Navigator.pop(dialogCtx);
-                    bool success = await DatabaseBackupHelper.importDatabase(context);
+
+                    final bool success =
+                    await DatabaseBackupHelper.importDatabase(context);
+
+                    // Ensure Context is still active before building dialogs or snackbars
+                    if (!context.mounted) return;
+
                     if (success) {
                       _showRestartDialog(context);
                     } else {
@@ -202,7 +212,10 @@ class DataBackupUi {
                   },
                   child: const Text(
                     "RESTORE",
-                    style: TextStyle(fontWeight: FontWeight.bold,color: Colors.white),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -214,47 +227,57 @@ class DataBackupUi {
   }
 
   static void _showRestartDialog(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: Theme.of(context).dialogTheme.backgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle_rounded, color: Colors.green[700], size: 50.sp),
-            SizedBox(height: 2.h),
-            Text(
-              "Restore Successful",
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+      builder: (dialogCtx) => PopScope(
+        canPop: false, // Prevents Android back-button dismissal
+        child: AlertDialog(
+          backgroundColor: theme.dialogTheme.backgroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle_rounded,
+                color: Colors.green[700],
+                size: 50.sp,
               ),
-            ),
-            SizedBox(height: 1.h),
-            Text(
-              "The app must restart to load records.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
-            SizedBox(height: 3.h),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
+              SizedBox(height: 2.h),
+              Text(
+                "Restore Successful",
+                style: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
                 ),
-                onPressed: () => exit(0),
-                child: const Text("RESTART NOW"),
               ),
-            ),
-          ],
+              SizedBox(height: 1.h),
+              Text(
+                "The app must restart to load records.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              SizedBox(height: 3.h),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                  ),
+                  onPressed: () => exit(0),
+                  child: const Text("RESTART NOW"),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -268,8 +291,9 @@ class DataBackupUi {
         required Color color,
         required VoidCallback onTap,
       }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
 
     return InkWell(
       onTap: onTap,

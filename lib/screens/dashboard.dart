@@ -1,16 +1,17 @@
 import 'dart:convert';
-import 'package:intl/intl.dart';
-import 'package:sizer/sizer.dart';
-import 'package:smart_inventory/screens/setting_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
+import 'package:sizer/sizer.dart';
+import 'package:smart_inventory/database/database_helper.dart';
+import 'package:smart_inventory/screens/setting_screen.dart';
+import 'package:smart_inventory/services/pdf_generate.dart';
 import 'package:smart_inventory/widgets/bargraph.dart';
 import 'package:smart_inventory/widgets/revenue_graph.dart';
-import 'package:smart_inventory/services/pdf_generate.dart';
-import 'package:smart_inventory/database/database_helper.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
@@ -26,6 +27,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
   bool _isLoading = true;
   bool _isGraphVisible = false;
+  double _totalRevenue = 0.0; // Cached total revenue
+
   final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
 
   @override
@@ -46,6 +49,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     _filterSales();
   }
 
+  /// Efficiently filters sales list
   void _filterSales() {
     final query = _searchController.text.trim().toLowerCase();
     setState(() {
@@ -53,18 +57,28 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
         _filteredSales = _sales.where((sale) {
           final id = sale['id']?.toString().toLowerCase() ?? '';
           return id.contains(query);
-        }).toList()..sort((a, b) => (a['id'] ?? 0).compareTo(b['id'] ?? 0));
+        }).toList();
       } else {
         _filteredSales = List.from(_sales);
       }
     });
   }
 
+  /// Fetches sales (sorted directly by SQLite database) and calculates cached revenue
   Future<void> _fetchSales() async {
+    // Option 2: Delegated sorting to SQLite query directly
     final data = await DBProvider.db.getSales();
+
+    // Calculate total revenue once
+    double revenueAcc = 0.0;
+    for (var sale in data) {
+      revenueAcc += (sale['total'] as num?)?.toDouble() ?? 0.0;
+    }
+
     if (mounted) {
       setState(() {
         _sales = data;
+        _totalRevenue = revenueAcc;
         _isLoading = false;
       });
       _filterSales();
@@ -79,17 +93,21 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   void _showSaleDetails(BuildContext context, Map<String, dynamic> sale) {
     List<dynamic> items = [];
     if (sale['items'] != null) {
-      items = jsonDecode(sale['items']);
+      try {
+        items = sale['items'] is String
+            ? jsonDecode(sale['items'])
+            : sale['items'];
+      } catch (_) {
+        items = [];
+      }
     }
 
-    // Identify current theme state
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      // Ensure the background of the sheet matches the theme
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -128,33 +146,39 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                       style: TextStyle(color: colorScheme.onSurfaceVariant),
                     ),
                   ...items.map(
-                    (item) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        item['name'],
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15.sp,
-                          color: colorScheme.onSurface, // Adaptive text
+                        (item) {
+                      final double qty =
+                          (item['qty'] as num?)?.toDouble() ?? 0.0;
+                      final double price =
+                          (item['price'] as num?)?.toDouble() ?? 0.0;
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          item['name']?.toString() ?? 'Item',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15.sp,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        "${item['qty']} x ${formatter.format(item['price'])}",
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          color: colorScheme
-                              .onSurfaceVariant, // Muted adaptive text
+                        subtitle: Text(
+                          "${qty.toInt()} x ${formatter.format(price)}",
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                      trailing: Text(
-                        formatter.format(item['qty'] * item['price']),
-                        style: TextStyle(
-                          fontSize: 15.sp,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
+                        trailing: Text(
+                          formatter.format(qty * price),
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -173,7 +197,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   ),
                 ),
                 Text(
-                  formatter.format(sale['total']),
+                  formatter.format(sale['total'] ?? 0),
                   style: TextStyle(
                     fontSize: 19.sp,
                     fontWeight: FontWeight.bold,
@@ -206,10 +230,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      // Green is a good "action" color, but we ensure it pops in both modes
-                      backgroundColor: isDark
-                          ? Colors.green[600]
-                          : Colors.green[800],
+                      backgroundColor:
+                      isDark ? Colors.green[600] : Colors.green[800],
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -253,7 +275,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           "No sales recorded yet.",
           style: TextStyle(
             fontSize: 16.sp,
-            // Adaptive muted text
             color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
           ),
@@ -261,25 +282,18 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       );
     }
 
-    double revenue = _sales.fold(
-      0,
-      (sum, item) => sum + (item['total'] as num).toDouble(),
-    );
-
     return RefreshIndicator(
       onRefresh: () async {
         _searchController.clear();
         await _fetchSales();
       },
-      // Use primary color for the refresh spinner
       color: colorScheme.primary,
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Revenue Card
-            Card(
+      child: CustomScrollView(
+        slivers: [
+          // 1. Revenue Card Header
+          SliverToBoxAdapter(
+            child: Card(
               margin: const EdgeInsets.all(16),
-              // Use a subtle indigo tinted background for both modes
               color: isDark
                   ? Colors.indigo.withValues(alpha: 0.15)
                   : Colors.indigo[50],
@@ -298,7 +312,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                       ),
                     ),
                     subtitle: Text(
-                      formatter.format(revenue),
+                      formatter.format(_totalRevenue),
                       style: TextStyle(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
@@ -321,9 +335,11 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 ],
               ),
             ),
+          ),
 
-            // Search Bar
-            Padding(
+          // 2. Search Bar Header
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
               child: TextField(
                 controller: _searchController,
@@ -331,7 +347,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   prefixIcon: const Icon(Icons.search),
                   hintText: "Search Sale ID...",
                   filled: true,
-                  // Use adaptive background for the search field
                   fillColor: isDark
                       ? colorScheme.surfaceContainer
                       : Colors.grey[100],
@@ -342,26 +357,30 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                          },
-                        )
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                    },
+                  )
                       : null,
                 ),
               ),
             ),
+          ),
 
-            // Conditional Display
-            if (_filteredSales.isEmpty && _searchController.text.isNotEmpty)
-              _emptyState("No matching sales found.")
-            else if (_filteredSales.isEmpty && _sales.isNotEmpty)
-              _emptyState("No sales to display.")
-            else
-              ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+          // 3. Lazy List or Empty State
+          if (_filteredSales.isEmpty && _searchController.text.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _emptyState("No matching sales found."),
+            )
+          else if (_filteredSales.isEmpty && _sales.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _emptyState("No sales to display."),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.separated(
                 itemCount: _filteredSales.length,
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, i) {
@@ -373,7 +392,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                       child: Text(
                         "Sale #${sale['id']}",
                         style: TextStyle(
-                          // Keep indigo for links/actions
                           color: isDark ? Colors.white : Colors.indigo,
                           decoration: TextDecoration.underline,
                           fontWeight: FontWeight.bold,
@@ -389,7 +407,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                       ),
                     ),
                     trailing: Text(
-                      formatter.format(sale['total']),
+                      formatter.format(sale['total'] ?? 0),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14.sp,
@@ -399,13 +417,12 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   );
                 },
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
 
-  // Helper for empty states
   Widget _emptyState(String text) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 10.h),
@@ -422,79 +439,148 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   }
 
   void _confirmRefund(BuildContext context, Map<String, dynamic> sale) {
-    // Define theme variables locally for this function
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          "Confirm Refund?",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
-          "Do you want to return Sale #${sale['id']}? This will add the items back to stock and remove the revenue.",
-          style: TextStyle(color: colorScheme.onSurfaceVariant),
-        ),
-        actionsPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              "CANCEL",
-              style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.grey[600],
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              // Use semantic error color for the refund action
-              backgroundColor: Colors.red,
-              foregroundColor: colorScheme.onError,
-              elevation: 0,
+      builder: (ctx) {
+        bool isProcessing = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(24),
               ),
-            ),
-            onPressed: () async {
-              await DBProvider.db.returnSale(sale);
-
-              if (!context.mounted) return;
-
-              Navigator.pop(ctx);
-              _fetchSales(); // Refresh your sales history
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text("Sale returned successfully!"),
-                  backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              contentPadding: EdgeInsets.fromLTRB(20.sp, 24.sp, 20.sp, 12.sp),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.assignment_return_rounded,
+                      color: Colors.red,
+                      size: 32,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    "Confirm Refund?",
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  SizedBox(height: 1.h),
+                  Text(
+                    "Do you want to return Sale #${sale['id']}?\nThis will restore items back to stock and adjust revenue.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14.5.sp,
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+              actionsPadding: EdgeInsets.fromLTRB(16.sp, 0, 16.sp, 16.sp),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                TextButton(
+                  onPressed: isProcessing ? null : () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 14.sp,
+                      vertical: 10.sp,
+                    ),
+                  ),
+                  child: Text(
+                    "CANCEL",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.grey[400] : Colors.grey[700],
+                    ),
                   ),
                 ),
-              );
-            },
-            child: Text(
-              "CONFIRM RETURN",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.indigo,
-              ),
-            ),
-          ),
-        ],
-      ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 18.sp,
+                      vertical: 10.sp,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: isProcessing
+                      ? null
+                      : () async {
+                    setDialogState(() => isProcessing = true);
+                    try {
+                      await DBProvider.db.returnSale(sale);
+
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+
+                      _fetchSales();
+
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.check_circle,
+                                  color: Colors.white),
+                              const SizedBox(width: 10),
+                              Text(
+                                  "Sale #${sale['id']} returned successfully!"),
+                            ],
+                          ),
+                          backgroundColor: Colors.green[700],
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      setDialogState(() => isProcessing = false);
+                    }
+                  },
+                  child: isProcessing
+                      ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                      : const Text(
+                    "CONFIRM RETURN",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -511,10 +597,8 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Adapted Graph Container
           Card(
             elevation: 0,
-            // Use surfaceContainer for a subtle lift in Dark Mode
             color: isDark ? colorScheme.surfaceContainer : Colors.grey[50],
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
@@ -522,17 +606,15 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
             child: ProfitBarChart(sales: _sales),
           ),
           const Divider(height: 30, thickness: 1),
-          ProfitBreakdownWidget(sales: _sales), //available in /widgets/bargraph.dart
+          ProfitBreakdownWidget(sales: _sales),
         ],
       ),
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // Detect theme brightness and color scheme
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final appBarTheme = Theme.of(context).appBarTheme;
@@ -554,17 +636,17 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsPage(),
+                  ),
                 );
               },
             ),
           ],
           bottom: TabBar(
-            // Use a bright indicator that pops against the indigo app bar
             indicatorColor: isDark ? colorScheme.secondary : Colors.white,
             indicatorWeight: 3,
             labelColor: Colors.white,
-            // Lighter grey for unselected tabs in both modes for readability
             unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
             tabs: const [
               Tab(icon: Icon(Icons.show_chart), text: "Sales Summary"),
@@ -572,7 +654,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
             ],
           ),
         ),
-        // Ensure the background of the TabBarView matches the theme
         body: Container(
           color: Theme.of(context).scaffoldBackgroundColor,
           child: TabBarView(
