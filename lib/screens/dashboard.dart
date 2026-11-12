@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:sizer/sizer.dart';
 import 'package:smart_inventory/screens/setting_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:printing/printing.dart';
 import 'package:smart_inventory/widgets/bargraph.dart';
 import 'package:smart_inventory/widgets/revenue_graph.dart';

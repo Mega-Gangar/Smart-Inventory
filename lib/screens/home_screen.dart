@@ -1,6 +1,6 @@
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:smart_inventory/screens/billing.dart';
 import 'package:smart_inventory/screens/dashboard.dart';
 import 'package:smart_inventory/screens/inventory.dart';

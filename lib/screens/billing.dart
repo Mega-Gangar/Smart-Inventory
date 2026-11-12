@@ -1,5 +1,5 @@
 import 'package:sizer/sizer.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:smart_inventory/main.dart';
 import 'package:smart_inventory/database/database_helper.dart';
 import 'package:smart_inventory/services/qr_upi.dart';
