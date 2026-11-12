@@ -6,31 +6,7 @@ import 'package:sizer/sizer.dart';
 import 'package:smart_inventory/main.dart'; // Contains 'formatter'
 import 'package:smart_inventory/services/filters.dart';
 
-// --- Shared Helper Utilities ---
-DateTime? _parseSaleDate(dynamic rawDate) {
-  if (rawDate == null) return null;
-  if (rawDate is DateTime) return rawDate;
-  return DateTime.tryParse(rawDate.toString());
-}
 
-double _calculateSaleCost(dynamic itemsRaw) {
-  if (itemsRaw == null) return 0.0;
-  try {
-    final List<dynamic> items =
-    itemsRaw is String ? jsonDecode(itemsRaw) : itemsRaw;
-    double totalCost = 0.0;
-    for (var item in items) {
-      final price = (item['cost'] as num?)?.toDouble() ?? 0.0;
-      final qty = (item['qty'] as num?)?.toInt() ?? 0;
-      totalCost += price * qty;
-    }
-    return totalCost;
-  } catch (_) {
-    return 0.0;
-  }
-}
-
-// PROFIT BAR CHART WIDGET
 class ProfitBarChart extends StatefulWidget {
   final List<Map<String, dynamic>> sales;
 
@@ -44,9 +20,9 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
   GraphFilter _selectedFilter = GraphFilter.last7Days;
   DateTimeRange? _customRange;
 
-  Map<String, Map<String, double>> _dailyData = {};
-  List<String> _labels = [];
-  double _maxYValue = 100;
+  late Map<String, Map<String, double>> _dailyData;
+  late List<String> _labels;
+  late double _maxYValue;
 
   @override
   void initState() {
@@ -62,8 +38,9 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     }
   }
 
+  /// Processes sales into revenue & cost data buckets according to the selected filter
   void _processChartData() {
-    final Map<String, Map<String, double>> dailyData = {};
+    Map<String, Map<String, double>> dailyData = {};
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -74,11 +51,12 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
       case GraphFilter.today:
         startDate = today;
         break;
-
       case GraphFilter.last7Days:
         startDate = today.subtract(const Duration(days: 6));
         break;
-
+      case GraphFilter.last30Days:
+        startDate = today.subtract(const Duration(days: 29));
+        break;
       case GraphFilter.custom:
         if (_customRange != null) {
           startDate = DateTime(
@@ -86,8 +64,7 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
             _customRange!.start.month,
             _customRange!.start.day,
           );
-
-          final userEndDate = DateTime(
+          endDate = DateTime(
             _customRange!.end.year,
             _customRange!.end.month,
             _customRange!.end.day,
@@ -95,18 +72,6 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
             59,
             59,
           );
-
-          final maxAllowedEndDate = startDate.add(const Duration(days: 6));
-          endDate = userEndDate.isAfter(maxAllowedEndDate)
-              ? DateTime(
-            maxAllowedEndDate.year,
-            maxAllowedEndDate.month,
-            maxAllowedEndDate.day,
-            23,
-            59,
-            59,
-          )
-              : userEndDate;
         } else {
           startDate = today.subtract(const Duration(days: 6));
         }
@@ -118,11 +83,13 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
 
     // Populate chart buckets
     if (_selectedFilter == GraphFilter.today) {
+      // 4-hour time slots for Today's view (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
       for (int i = 0; i < 24; i += 4) {
         String key = "${i.toString().padLeft(2, '0')}:00";
         dailyData[key] = {'rev': 0.0, 'cost': 0.0};
       }
     } else {
+      // Daily buckets for range views
       for (int i = 0; i < totalDays; i++) {
         DateTime d = startDate.add(Duration(days: i));
         String dateKey = DateFormat('dd/MM').format(d);
@@ -130,30 +97,32 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
       }
     }
 
-    double maxVal = 0.0;
-    final startBoundary = startDate.subtract(const Duration(seconds: 1));
-    final endBoundary = endDate.add(const Duration(seconds: 1));
-
-    // Aggregate sales data
+    // Filter and process sales list
     for (var sale in widget.sales) {
-      final saleDate = _parseSaleDate(sale['date']);
-      if (saleDate == null) continue;
+      DateTime saleDate = DateTime.parse(sale['date'].toString());
 
-      if (saleDate.isAfter(startBoundary) && saleDate.isBefore(endBoundary)) {
-        final String key = _selectedFilter == GraphFilter.today
-            ? "${((saleDate.hour ~/ 4) * 4).toString().padLeft(2, '0')}:00"
-            : DateFormat('dd/MM').format(saleDate);
+      if (saleDate.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+          saleDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+        String key;
+        if (_selectedFilter == GraphFilter.today) {
+          int slotHour = (saleDate.hour ~/ 4) * 4;
+          key = "${slotHour.toString().padLeft(2, '0')}:00";
+        } else {
+          key = DateFormat('dd/MM').format(saleDate);
+        }
 
-        final bucket = dailyData[key];
-        if (bucket != null) {
-          final double rev = (sale['total'] as num?)?.toDouble() ?? 0.0;
-          final double cost = _calculateSaleCost(sale['items']);
-
-          bucket['rev'] = bucket['rev']! + rev;
-          bucket['cost'] = bucket['cost']! + cost;
-
-          if (bucket['rev']! > maxVal) maxVal = bucket['rev']!;
-          if (bucket['cost']! > maxVal) maxVal = bucket['cost']!;
+        if (dailyData.containsKey(key)) {
+          double rev = (sale['total'] as num).toDouble();
+          double cost = 0;
+          if (sale['items'] != null) {
+            List<dynamic> items = jsonDecode(sale['items']);
+            for (var item in items) {
+              cost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+                  ((item['qty'] as num?)?.toInt() ?? 0);
+            }
+          }
+          dailyData[key]!['rev'] = dailyData[key]!['rev']! + rev;
+          dailyData[key]!['cost'] = dailyData[key]!['cost']! + cost;
         }
       }
     }
@@ -161,20 +130,46 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     setState(() {
       _dailyData = dailyData;
       _labels = dailyData.keys.toList();
-      _maxYValue = maxVal == 0 ? 100 : maxVal * 1.35;
+      _maxYValue = _calculateMaxY(dailyData);
     });
   }
 
+  double _calculateMaxY(Map<String, Map<String, double>> data) {
+    double highestVal = 0;
+    for (var d in data.values) {
+      if (d['rev']! > highestVal) highestVal = d['rev']!;
+      if (d['cost']! > highestVal) highestVal = d['cost']!;
+    }
+    return highestVal == 0 ? 100 : highestVal * 1.4;
+  }
+
+  /// Displays native calendar date range picker for "Custom Range"
   Future<void> _selectCustomDateRange(BuildContext context) async {
-    final range = await DatePickerHelper.selectCustomDateRange(
+    final now = DateTime.now();
+    final pickedRange = await showDateRangePicker(
       context: context,
-      currentRange: _customRange,
-      maxDays: 7,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customRange ??
+          DateTimeRange(
+            start: now.subtract(const Duration(days: 7)),
+            end: now,
+          ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: Colors.indigo,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
-    if (range != null) {
+    if (pickedRange != null) {
       setState(() {
-        _customRange = range;
+        _customRange = pickedRange;
         _selectedFilter = GraphFilter.custom;
         _processChartData();
       });
@@ -186,19 +181,16 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
+    // Dynamically adjust bar width and label spacing depending on array density
     final double barWidth =
     _labels.length > 20 ? 4 : (_labels.length > 10 ? 7 : 12);
     final int labelStep = _labels.length > 15 ? (_labels.length ~/ 5) : 1;
 
-    final Color revColor = isDark ? Colors.greenAccent : Colors.green;
-    final Color trackColor = isDark
-        ? Colors.white.withValues(alpha: 0.05)
-        : Colors.grey[100]!;
-
     return Column(
       children: [
+        // --- Filter Dropdown Header Row ---
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0,vertical: 14.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -260,97 +252,104 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
         ),
 
         // --- Bar Chart View ---
-        SizedBox(
+        Container(
+          key: ValueKey(isDark),
           height: 250,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: _maxYValue,
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    getTooltipColor: (group) =>
-                    isDark ? const Color(0xFF333333) : Colors.grey.shade900,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                      return BarTooltipItem(
-                        "${rodIndex == 0 ? "Revenue" : "Cost"}\n${formatter.format(rod.toY)}",
-                        TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13.7.sp,
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: _maxYValue,
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipColor: (group) =>
+                  isDark ? const Color(0xFF333333) : Colors.grey.shade900,
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    return BarTooltipItem(
+                      "${rodIndex == 0 ? "Revenue" : "Cost"}\n${formatter.format(rod.toY)}",
+                      TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.7.sp,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      int index = value.toInt();
+                      if (index < 0 || index >= _labels.length) {
+                        return const SizedBox();
+                      }
+                      // Skip crowded labels when date range is large
+                      if (index % labelStep != 0 &&
+                          index != _labels.length - 1) {
+                        return const SizedBox();
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _labels[index],
+                          style: TextStyle(
+                            fontSize: 13.7.sp,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
                         ),
                       );
                     },
                   ),
                 ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        int index = value.toInt();
-                        if (index < 0 || index >= _labels.length) {
-                          return const SizedBox();
-                        }
-                        if (index % labelStep != 0 &&
-                            index != _labels.length - 1) {
-                          return const SizedBox();
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            _labels[index],
-                            style: TextStyle(
-                              fontSize: 13.7.sp,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white70 : Colors.black87,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                leftTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
                 ),
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                barGroups: List.generate(_labels.length, (index) {
-                  final data = _dailyData[_labels[index]]!;
-                  return BarChartGroupData(
-                    x: index,
-                    barRods: [
-                      BarChartRodData(
-                        toY: data['rev']!,
-                        color: revColor,
-                        width: barWidth,
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: _maxYValue,
-                          color: trackColor,
-                        ),
-                      ),
-                      BarChartRodData(
-                        toY: data['cost']!,
-                        color: Colors.orange,
-                        width: barWidth,
-                        backDrawRodData: BackgroundBarChartRodData(
-                          show: true,
-                          toY: _maxYValue,
-                          color: trackColor,
-                        ),
-                      ),
-                    ],
-                  );
-                }),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
               ),
+              gridData: const FlGridData(show: false),
+              borderData: FlBorderData(show: false),
+              barGroups: List.generate(_labels.length, (index) {
+                final data = _dailyData[_labels[index]]!;
+                return BarChartGroupData(
+                  x: index,
+                  barRods: [
+                    BarChartRodData(
+                      toY: data['rev']!,
+                      color: isDark ? Colors.greenAccent : Colors.green,
+                      width: barWidth,
+                      backDrawRodData: BackgroundBarChartRodData(
+                        show: true,
+                        toY: _maxYValue,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.grey[100],
+                      ),
+                    ),
+                    BarChartRodData(
+                      toY: data['cost']!,
+                      color: Colors.orange,
+                      width: barWidth,
+                      backDrawRodData: BackgroundBarChartRodData(
+                        show: true,
+                        toY: _maxYValue,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.grey[100],
+                      ),
+                    ),
+                  ],
+                );
+              }),
             ),
           ),
         ),
@@ -358,43 +357,22 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     );
   }
 }
-
-// ==========================================
-// 2. PROFIT BREAKDOWN WIDGET
-// ==========================================
+//Profit BreakDown Section
 class ProfitBreakdownWidget extends StatefulWidget {
   final List<Map<String, dynamic>> sales;
 
   const ProfitBreakdownWidget({super.key, required this.sales});
 
   @override
-  State<ProfitBreakdownWidget> createState() => _ProfitBreakdownWidgetState();
+  State<ProfitBreakdownWidget> createState() => _PeriodBreakdownWidgetState();
 }
 
-class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
+class _PeriodBreakdownWidgetState extends State<ProfitBreakdownWidget> {
   BreakdownFilter _selectedFilter = BreakdownFilter.thisMonth;
   DateTimeRange? _customRange;
 
-  double _periodRevenue = 0.0;
-  double _periodCost = 0.0;
-  double _todayNet = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _recalculateMetrics();
-  }
-
-  @override
-  void didUpdateWidget(covariant ProfitBreakdownWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.sales != oldWidget.sales) {
-      _recalculateMetrics();
-    }
-  }
-
-  /// Single-pass calculation for both period metrics and today's net profit
-  void _recalculateMetrics() {
+  /// Calculates revenue, cost, and net profit based on the selected period filter
+  Map<String, double> _calculateMetrics() {
     final now = DateTime.now();
     DateTime startDate;
     DateTime endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
@@ -436,55 +414,90 @@ class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
         break;
     }
 
-    double revAcc = 0.0;
-    double costAcc = 0.0;
-    double tRev = 0.0;
-    double tCost = 0.0;
-
-    final startBoundary = startDate.subtract(const Duration(seconds: 1));
-    final endBoundary = endDate.add(const Duration(seconds: 1));
+    double revenue = 0.0;
+    double cost = 0.0;
 
     for (var sale in widget.sales) {
-      final saleDate = _parseSaleDate(sale['date']);
-      if (saleDate == null) continue;
+      DateTime saleDate = DateTime.parse(sale['date'].toString());
 
-      final double saleRev = (sale['total'] as num?)?.toDouble() ?? 0.0;
-      final double saleCost = _calculateSaleCost(sale['items']);
+      if (saleDate.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
+          saleDate.isBefore(endDate.add(const Duration(seconds: 1)))) {
+        double saleRev = (sale['total'] as num).toDouble();
+        double saleCost = 0.0;
 
-      // 1. Period metrics check
-      if (saleDate.isAfter(startBoundary) && saleDate.isBefore(endBoundary)) {
-        revAcc += saleRev;
-        costAcc += saleCost;
-      }
+        if (sale['items'] != null) {
+          List<dynamic> items = jsonDecode(sale['items']);
+          for (var item in items) {
+            saleCost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+                ((item['qty'] as num?)?.toInt() ?? 0);
+          }
+        }
 
-      // 2. Today's net check
-      if (saleDate.year == now.year &&
-          saleDate.month == now.month &&
-          saleDate.day == now.day) {
-        tRev += saleRev;
-        tCost += saleCost;
+        revenue += saleRev;
+        cost += saleCost;
       }
     }
 
-    setState(() {
-      _periodRevenue = revAcc;
-      _periodCost = costAcc;
-      _todayNet = tRev - tCost;
-    });
+    return {
+      'revenue': revenue,
+      'cost': cost,
+      'net': revenue - cost,
+    };
   }
 
+  /// Calculates Today's net profit specifically
+  double _calculateTodayNet() {
+    final now = DateTime.now();
+    double todayRev = 0.0;
+    double todayCost = 0.0;
+
+    for (var sale in widget.sales) {
+      DateTime saleDate = DateTime.parse(sale['date'].toString());
+      if (saleDate.year == now.year &&
+          saleDate.month == now.month &&
+          saleDate.day == now.day) {
+        todayRev += (sale['total'] as num).toDouble();
+
+        if (sale['items'] != null) {
+          List<dynamic> items = jsonDecode(sale['items']);
+          for (var item in items) {
+            todayCost += ((item['cost'] as num?)?.toDouble() ?? 0.0) *
+                ((item['qty'] as num?)?.toInt() ?? 0);
+          }
+        }
+      }
+    }
+    return todayRev - todayCost;
+  }
+
+  /// Opens the native date range calendar picker for custom filter
   Future<void> _selectCustomDateRange(BuildContext context) async {
-    final range = await DatePickerHelper.selectCustomDateRange(
+    final now = DateTime.now();
+    final pickedRange = await showDateRangePicker(
       context: context,
-      currentRange: _customRange,
-      maxDays: 31, // Custom breakdown range can support longer ranges
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customRange ??
+          DateTimeRange(
+            start: DateTime(now.year, now.month, 1),
+            end: now,
+          ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: Colors.indigo,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
-    if (range != null) {
+    if (pickedRange != null) {
       setState(() {
-        _customRange = range;
+        _customRange = pickedRange;
         _selectedFilter = BreakdownFilter.custom;
-        _recalculateMetrics();
       });
     }
   }
@@ -494,8 +507,7 @@ class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
       case BreakdownFilter.thisMonth:
         return "This Month's";
       case BreakdownFilter.lastMonth:
-        final lastMonthDate = DateTime(DateTime.now().year, DateTime.now().month - 1, 1);
-        return "${DateFormat('MMM').format(lastMonthDate)}'s";
+        return "${DateFormat('MMM').format(DateTime(DateTime.now().year, DateTime.now().month - 1, 1))}'s";
       case BreakdownFilter.thisYear:
         return "This Year's";
       case BreakdownFilter.custom:
@@ -544,12 +556,17 @@ class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final double periodNet = _periodRevenue - _periodCost;
+    final metrics = _calculateMetrics();
+    final double periodRevenue = metrics['revenue']!;
+    final double periodCost = metrics['cost']!;
+    final double selectedPeriodNet = metrics['net']!;
+    final double todayNet = _calculateTodayNet();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         children: [
+          // --- Filter Dropdown Row ---
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -562,7 +579,8 @@ class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -581,7 +599,6 @@ class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
                       } else if (newValue != null) {
                         setState(() {
                           _selectedFilter = newValue;
-                          _recalculateMetrics();
                         });
                       }
                     },
@@ -614,30 +631,30 @@ class _ProfitBreakdownWidgetState extends State<ProfitBreakdownWidget> {
 
           // --- Today's Metrics Tile ---
           _buildPeriodTile(
-            _todayNet < 0 ? "Today's Loss" : "Today's Profit",
-            _todayNet,
+            todayNet < 0 ? "Today's Loss" : "Today's Profit",
+            todayNet,
           ),
 
           // --- Filtered Period Revenue Tile ---
           _buildPeriodTile(
             "${_getFilterLabel()} Revenue",
-            _periodRevenue,
+            periodRevenue,
             customColor: Colors.blue.shade700,
           ),
 
           // --- Filtered Period Cost Tile ---
           _buildPeriodTile(
             "${_getFilterLabel()} Cost",
-            _periodCost,
+            periodCost,
             customColor: Colors.orange.shade800,
           ),
 
           // --- Filtered Period Net Profit/Loss Tile ---
           _buildPeriodTile(
-            periodNet < 0
+            selectedPeriodNet < 0
                 ? "${_getFilterLabel()} Loss"
                 : "${_getFilterLabel()} Profit",
-            periodNet,
+            selectedPeriodNet,
           ),
         ],
       ),

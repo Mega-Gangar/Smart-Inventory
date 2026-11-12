@@ -1,16 +1,8 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:smart_inventory/main.dart';
 import 'package:smart_inventory/services/filters.dart';
-
-/// Lightweight container for pre-parsed sale data
-class _ParsedSale {
-  final DateTime date;
-  final double total;
-
-  const _ParsedSale({required this.date, required this.total});
-}
 
 class RevenueGraph extends StatefulWidget {
   final List<Map<String, dynamic>> sales;
@@ -24,50 +16,35 @@ class _RevenueGraphState extends State<RevenueGraph> {
   GraphFilter _selectedFilter = GraphFilter.today;
   DateTimeRange? _customRange;
 
-  List<FlSpot> _spots = [];
-  List<DateTime> _spotDates = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _processSalesData();
-  }
-
-  @override
-  void didUpdateWidget(covariant RevenueGraph oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.sales != oldWidget.sales) {
-      _processSalesData();
-    }
-  }
-
-  /// Single-pass filtering, pre-parsed sorting, and spot generation
-  void _processSalesData() {
+  /// Filters the raw sales list based on the selected dropdown filter / calendar range
+  List<Map<String, dynamic>> _filterSales() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    DateTime? startDate;
-    DateTime? endDate;
+    return widget.sales.where((sale) {
+      final saleDate = DateTime.parse(sale['date'].toString());
 
-    switch (_selectedFilter) {
-      case GraphFilter.today:
-        startDate = today;
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
+      switch (_selectedFilter) {
+        case GraphFilter.today:
+          return !saleDate.isBefore(today);
 
-      case GraphFilter.last7Days:
-        startDate = today.subtract(const Duration(days: 6));
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        break;
+        case GraphFilter.last7Days:
+          final sevenDaysAgo = today.subtract(const Duration(days: 7));
+          return saleDate.isAfter(sevenDaysAgo);
 
-      case GraphFilter.custom:
-        if (_customRange != null) {
-          startDate = DateTime(
+        case GraphFilter.last30Days:
+          final thirtyDaysAgo = today.subtract(const Duration(days: 30));
+          return saleDate.isAfter(thirtyDaysAgo);
+
+        case GraphFilter.custom:
+          if (_customRange == null) return true;
+          // Set start of custom range to midnight and end of range to 23:59:59
+          final start = DateTime(
             _customRange!.start.year,
             _customRange!.start.month,
             _customRange!.start.day,
           );
-          endDate = DateTime(
+          final end = DateTime(
             _customRange!.end.year,
             _customRange!.end.month,
             _customRange!.end.day,
@@ -75,66 +52,39 @@ class _RevenueGraphState extends State<RevenueGraph> {
             59,
             59,
           );
-        }
-        break;
-    }
-
-    final startBoundary = startDate?.subtract(const Duration(seconds: 1));
-    final endBoundary = endDate?.add(const Duration(seconds: 1));
-
-    // 1. Single pass: Parse date once & filter
-    final List<_ParsedSale> validSales = [];
-
-    for (var sale in widget.sales) {
-      final rawDate = sale['date'];
-      if (rawDate == null) continue;
-
-      final DateTime? saleDate = rawDate is DateTime
-          ? rawDate
-          : DateTime.tryParse(rawDate.toString());
-
-      if (saleDate == null) continue;
-
-      // Filter boundary checks
-      if (startBoundary != null && !saleDate.isAfter(startBoundary)) continue;
-      if (endBoundary != null && !saleDate.isBefore(endBoundary)) continue;
-
-      final double total = (sale['total'] as num?)?.toDouble() ?? 0.0;
-      validSales.add(_ParsedSale(date: saleDate, total: total));
-    }
-
-    // 2. Fast sort using pre-parsed DateTime objects (microseconds comparison)
-    validSales.sort((a, b) => a.date.compareTo(b.date));
-
-    // 3. Generate chart spots and date references
-    final List<FlSpot> spots = [];
-    final List<DateTime> spotDates = [];
-
-    for (int i = 0; i < validSales.length; i++) {
-      spots.add(FlSpot(i.toDouble(), validSales[i].total));
-      spotDates.add(validSales[i].date);
-    }
-
-    setState(() {
-      _spots = spots;
-      _spotDates = spotDates;
-    });
+          return saleDate.isAfter(start) && saleDate.isBefore(end);
+      }
+    }).toList();
   }
 
   /// Handles calendar selection when "Custom Range" is chosen
   Future<void> _selectCustomDateRange(BuildContext context) async {
-    final pickedRange = await DatePickerHelper.selectCustomDateRange(
+    final now = DateTime.now();
+    final pickedRange = await showDateRangePicker(
       context: context,
-      currentRange: _customRange,
-      maxDays: 7,
-      primaryColor: Colors.indigo,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: _customRange ??
+          DateTimeRange(
+            start: now.subtract(const Duration(days: 7)),
+            end: now,
+          ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: Colors.indigo,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (pickedRange != null) {
       setState(() {
         _customRange = pickedRange;
         _selectedFilter = GraphFilter.custom;
-        _processSalesData();
       });
     }
   }
@@ -150,7 +100,25 @@ class _RevenueGraphState extends State<RevenueGraph> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final filteredSales = _filterSales();
+
+    // 1. Sort Filtered Sales by Time (Earliest to Latest)
+    filteredSales.sort((a, b) {
+      return DateTime.parse(a['date'].toString())
+          .compareTo(DateTime.parse(b['date'].toString()));
+    });
+
+    // 2. Generate Chart Spots
+    List<FlSpot> spots = [];
+    List<DateTime> spotDates = [];
+
+    for (int i = 0; i < filteredSales.length; i++) {
+      final saleDate = DateTime.parse(filteredSales[i]['date'].toString());
+      final total = (filteredSales[i]['total'] as num).toDouble();
+
+      spots.add(FlSpot(i.toDouble(), total));
+      spotDates.add(saleDate);
+    }
 
     return Column(
       children: [
@@ -180,7 +148,6 @@ class _RevenueGraphState extends State<RevenueGraph> {
                       } else if (newValue != null) {
                         setState(() {
                           _selectedFilter = newValue;
-                          _processSalesData();
                         });
                       }
                     },
@@ -193,12 +160,21 @@ class _RevenueGraphState extends State<RevenueGraph> {
                         value: GraphFilter.last7Days,
                         child: Text("Last 7 Days"),
                       ),
+                      const DropdownMenuItem(
+                        value: GraphFilter.last30Days,
+                        child: Text("Last 30 Days"),
+                      ),
                       DropdownMenuItem(
                         value: GraphFilter.custom,
-                        child: Text(
-                          _customRange == null
-                              ? "Custom Range"
-                              : "${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}",
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _customRange == null
+                                  ? "Custom Range"
+                                  : "${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}",
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -213,7 +189,7 @@ class _RevenueGraphState extends State<RevenueGraph> {
         Container(
           height: 200,
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
-          child: _spots.isEmpty
+          child: spots.isEmpty
               ? const Center(
             child: Text(
               "No sales data for this period",
@@ -224,29 +200,23 @@ class _RevenueGraphState extends State<RevenueGraph> {
             LineChartData(
               lineTouchData: LineTouchData(
                 getTouchedSpotIndicator: (barData, spotIndexes) {
-                  return spotIndexes
-                      .map((index) => const TouchedSpotIndicatorData(
-                    FlLine(color: Colors.transparent),
-                    FlDotData(show: false),
-                  ))
-                      .toList();
+                  return spotIndexes.map((index) => TouchedSpotIndicatorData(
+                    const FlLine(color: Colors.transparent),
+                    const FlDotData(show: false),
+                  )).toList();
                 },
                 touchTooltipData: LineTouchTooltipData(
-                  getTooltipColor: (touchedSpot) =>
-                  isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                  getTooltipColor: (touchedSpot) => Colors.white,
                   getTooltipItems: (touchedBarSpots) {
                     return touchedBarSpots.map((barSpot) {
                       final int index = barSpot.x.toInt();
-                      final String label =
-                      (index >= 0 && index < _spotDates.length)
-                          ? _getSpotLabel(_spotDates[index])
+                      final String label = (index >= 0 && index < spotDates.length)
+                          ? _getSpotLabel(spotDates[index])
                           : "";
                       return LineTooltipItem(
                         "$label\n${formatter.format(barSpot.y)}",
-                        TextStyle(
-                          color: isDark
-                              ? Colors.indigoAccent
-                              : Colors.indigo,
+                        const TextStyle(
+                          color: Colors.indigo,
                           fontWeight: FontWeight.bold,
                         ),
                       );
@@ -259,7 +229,7 @@ class _RevenueGraphState extends State<RevenueGraph> {
               borderData: FlBorderData(show: false),
               lineBarsData: [
                 LineChartBarData(
-                  spots: _spots,
+                  spots: spots,
                   isCurved: true,
                   color: Colors.indigo,
                   barWidth: 3,

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:file_picker/file_picker.dart';
@@ -20,13 +20,13 @@ class DatabaseBackupHelper {
   static Future<bool> importDatabase(BuildContext context) async {
     try {
       // 1. Open the file picker for the user to select the backup file
-      FilePickerResult? result = await FilePicker.pickFiles(
+      List<PlatformFile>? result = await FilePicker.pickFiles(
         dialogTitle: 'Select Database Backup',
-        type: FileType.any, // Android/iOS can be strict about .db extensions, so 'any' is safest
+        type: FileType.any // Android/iOS can be strict about .db extensions, so 'any' is safest
       );
 
-      if (result != null && result.files.single.path != null) {
-        File backupFile = File(result.files.single.path!);
+      if (result.isNotEmpty) {
+        File backupFile = File(result.single.path!);
 
         // Optional: Basic validation to ensure they picked a .db file
         if (!backupFile.path.endsWith('.db')) {
