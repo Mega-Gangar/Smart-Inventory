@@ -122,8 +122,8 @@ class BusinessDetailsUi {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
+              backgroundColor: isDark ?  colorScheme.surfaceBright : Colors.indigo,
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

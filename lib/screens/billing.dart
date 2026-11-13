@@ -67,31 +67,87 @@ class BillingPageState extends RefreshableState<BillingPage>
   List<Map<String, dynamic>> _cart = [];
   double _total = 0;
 
-  void _updateCounter(int productId, int delta, int maxStock) {
+  void _updateCounter(
+      int productId,
+      int delta,
+      int maxStock, {
+        bool isCart = false,
+        StateSetter? setModalState,
+        BuildContext? sheetCtx,
+      }) {
     int inCart = _getQtyInCart(productId);
-    int realAvailable = maxStock - inCart;
-    setState(() {
-      int current = _itemCounters[productId] ?? 0;
-      int newValue = current + delta;
+    int pendingCounter = _itemCounters[productId] ?? 0;
 
-      if (newValue >= 0 && newValue <= realAvailable) {
-        _itemCounters[productId] = newValue;
-      } else if (newValue > realAvailable) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Total in cart selection cannot exceed $maxStock"),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+    setState(() {
+      if (isCart) {
+        int index = _cart.indexWhere((item) => item['id'] == productId);
+        if (index == -1) return;
+
+        int currentCartQty = (_cart[index]['qty'] as num).toInt();
+        double price = (_cart[index]['price'] as num).toDouble();
+        int newCartQty = currentCartQty + delta;
+
+        if (newCartQty > maxStock) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Total in cart selection cannot exceed $maxStock"),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
             ),
-            margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
-          ),
-        );
+          );
+          return;
+        }
+
+        if (newCartQty >= 1) {
+          _cart[index]['qty'] = newCartQty;
+          _total += (price * delta);
+
+          // Ensure pending counter on main screen doesn't exceed remaining stock
+          int remainingAvailable = maxStock - newCartQty;
+          if (pendingCounter > remainingAvailable) {
+            _itemCounters[productId] = remainingAvailable;
+          }
+        } else {
+          // Quantity dropped to 0 -> remove item from cart
+          _cart.removeAt(index);
+          _total -= price;
+        }
+
+        if (_total < 0) _total = 0.0;
+      } else {
+        // Original Product List Counter Logic
+        int realAvailable = maxStock - inCart;
+        int newValue = pendingCounter + delta;
+
+        if (newValue >= 0 && newValue <= realAvailable) {
+          _itemCounters[productId] = newValue;
+        } else if (newValue > realAvailable) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Total in cart selection cannot exceed $maxStock"),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
+            ),
+          );
+        }
       }
     });
-  }
 
+    if (isCart) {
+      setModalState?.call(() {});
+      if (_cart.isEmpty && sheetCtx != null && sheetCtx.mounted) {
+        Navigator.pop(sheetCtx);
+      }
+    }
+  }
   void _addToCart(Map<String, dynamic> product, BuildContext context) {
     int id = product['id'];
     int qtyToAdd = _itemCounters[id] ?? 0;
@@ -111,6 +167,7 @@ class BillingPageState extends RefreshableState<BillingPage>
           'name': product['name'],
           'price': product['price'],
           'cost': product['cost'],
+          'stock': product['stock'],
           'qty': qtyToAdd,
         });
       }
@@ -133,63 +190,303 @@ class BillingPageState extends RefreshableState<BillingPage>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(3.h)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(2.5.h)),
       ),
-      builder: (context) => StatefulBuilder(
-        // StatefulBuilder allows deleting items from inside the modal
-        builder: (context, setModalState) => Container(
-          padding: EdgeInsets.all(5.w),
-          height: 60.h, // Takes up 60% of the screen
-          child: Column(
-            children: [
-              Text(
-                "Review Cart",
-                style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
-              ),
-              Divider(),
-              Expanded(
-                child: _cart.isEmpty
-                    ? Center(
-                        child: Text(
-                          "Cart is empty",
-                          style: TextStyle(fontSize: 15.sp),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final colorScheme = Theme.of(context).colorScheme;
+
+          return Container(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+            constraints: BoxConstraints(maxHeight: 70.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Sheet Drag Handle
+                Container(
+                  width: 12.w,
+                  height: 0.4.h,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                SizedBox(height: 1.5.h),
+
+                // 2. Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          color: isDark ? Colors.white : Colors.indigo,
+                          size: 20.sp,
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _cart.length,
-                        itemBuilder: (context, i) {
-                          final item = _cart[i];
-                          return ListTile(
-                            title: Text(
-                              item['name'],
-                              style: TextStyle(fontSize: 16.sp),
-                            ),
-                            subtitle: Text(
-                              "${item['qty']} x ${formatter.format(item['price'])}",
-                            ),
-                            trailing: IconButton(
-                              icon: Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                                size: 20.sp,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _total -= (item['price'] * item['qty']);
-                                  _cart.removeAt(i);
-                                });
-                                setModalState(() {}); // Refresh the modal list
-                                if (_cart.isEmpty) Navigator.pop(context);
-                              },
-                            ),
-                          );
+                        SizedBox(width: 2.w),
+                        Text(
+                          "Review Cart (${_cart.length})",
+                          style: TextStyle(
+                            fontSize: 17.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_cart.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _cart.clear();
+                            _total = 0.0;
+                            _itemCounters.clear();
+                          });
+                          setModalState(() {});
+                          if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                         },
+                        icon: Icon(
+                          Icons.delete_sweep_outlined,
+                          color: Colors.redAccent,
+                          size: 20.sp,
+                        ),
+                        label: Text(
+                          "Clear",
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 15.sp,
+                          ),
+                        ),
                       ),
-              ),
-            ],
-          ),
-        ),
+                  ],
+                ),
+                Divider(
+                  thickness: 1,
+                  color: isDark ? Colors.white10 : Colors.grey[200],
+                ),
+
+                // 3. Cart Items List / Empty State
+                Expanded(
+                  child: _cart.isEmpty
+                      ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.remove_shopping_cart_outlined,
+                          size: 42.sp,
+                          color: isDark
+                              ? Colors.grey[600]
+                              : Colors.grey[400],
+                        ),
+                        SizedBox(height: 1.5.h),
+                        Text(
+                          "Your cart is empty",
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? Colors.grey[400]
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                      : ListView.separated(
+                    itemCount: _cart.length,
+                    separatorBuilder: (_, _) => SizedBox(height: 1.h),
+                    itemBuilder: (context, i) {
+
+                      final item = _cart[i];
+                      final int id = (item['id'] as num?)?.toInt() ?? 0;
+                      final int stock = (item['stock'] as num?)?.toInt() ?? 0;
+                      final String name = item['name']?.toString() ?? '';
+                      final double price = (item['price'] as num?)?.toDouble() ?? 0.0;
+                      final int qty = (item['qty'] as num?)?.toInt() ?? 0;
+                      final double itemTotal = price * qty;
+
+                      return Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 3.w,
+                          vertical: 1.2.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white10
+                                : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // Item Info & Unit Pricing
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: TextStyle(
+                                      fontSize: 15.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 0.4.h),
+                                  Text(
+                                    "${formatter.format(price)} x $qty = ${formatter.format(itemTotal)}",
+                                    style: TextStyle(
+                                      fontSize: 14.sp,
+                                      color: isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // In-Cart Stepper (+ / - / delete)
+                            Row(
+                              children: [
+                                // Minus / Delete Button
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () => _updateCounter(
+                                    id,
+                                    -1,
+                                    stock,
+                                    isCart: true,
+                                    setModalState: setModalState,
+                                    sheetCtx: sheetCtx,
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(1.w),
+                                    child: Icon(
+                                      qty == 1 ? Icons.delete_outline : Icons.remove_circle_outline,
+                                      color: Colors.redAccent,
+                                      size: 21.sp,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 2.w),
+                                  child: Text(
+                                    "$qty",
+                                    style: TextStyle(
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+// Plus Button
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () => _updateCounter(
+                                    id,
+                                    1,
+                                    stock,
+                                    isCart: true,
+                                    setModalState: setModalState,
+                                    sheetCtx: sheetCtx,
+                                  ),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(1.w),
+                                    child: Icon(
+                                      Icons.add_circle_outline,
+                                      color: qty < stock
+                                          ? (isDark ? Colors.greenAccent : Colors.green)
+                                          : Colors.grey,
+                                      size: 21.sp,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // 4. Cart Summary Footer Bar
+                if (_cart.isNotEmpty) ...[
+                  Divider(
+                    thickness: 1,
+                    color: isDark ? Colors.white10 : Colors.grey[200],
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(top: 0.5.h, bottom: 0.5.h),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Subtotal",
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                color: isDark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              formatter.format(_total),
+                              style: TextStyle(
+                                fontSize: 18.sp,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.greenAccent[400]
+                                    : Colors.indigo,
+                              ),
+                            ),
+                          ],
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                            isDark ?  colorScheme.surfaceBright : Colors.indigo,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 5.w,
+                              vertical: 1.2.h,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                          },
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: Text(
+                            "Done",
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }

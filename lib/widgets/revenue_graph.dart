@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:sizer/sizer.dart';
 import 'package:smart_inventory/main.dart';
 import 'package:smart_inventory/services/filters.dart';
 
@@ -32,13 +33,8 @@ class _RevenueGraphState extends State<RevenueGraph> {
           final sevenDaysAgo = today.subtract(const Duration(days: 7));
           return saleDate.isAfter(sevenDaysAgo);
 
-        case GraphFilter.last30Days:
-          final thirtyDaysAgo = today.subtract(const Duration(days: 30));
-          return saleDate.isAfter(thirtyDaysAgo);
-
         case GraphFilter.custom:
           if (_customRange == null) return true;
-          // Set start of custom range to midnight and end of range to 23:59:59
           final start = DateTime(
             _customRange!.start.year,
             _customRange!.start.month,
@@ -57,6 +53,45 @@ class _RevenueGraphState extends State<RevenueGraph> {
     }).toList();
   }
 
+  Widget _buildFilterChip(String label, GraphFilter filterValue, IconData icon) {
+    final isSelected = _selectedFilter == filterValue;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ChoiceChip(
+      label: Text(label),
+      avatar: Icon(
+        icon,
+        size: 16.sp,
+        color: isSelected ? colorScheme.primary : (isDark ? Colors.white70 : Colors.grey[700]),
+      ),
+      selected: isSelected,
+      selectedColor: colorScheme.primary.withValues(alpha: 0.15),
+      backgroundColor: Theme.of(context).cardColor,
+      labelStyle: TextStyle(
+        fontSize: 15.sp,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? colorScheme.primary : (isDark ? Colors.white70 : Colors.grey[800]),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isSelected ? colorScheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+        ),
+      ),
+      onSelected: (selected) async {
+        if (selected) {
+          if (filterValue == GraphFilter.custom) {
+            await _selectCustomDateRange(context);
+          } else {
+            setState(() {
+              _selectedFilter = filterValue;
+            });
+          }
+        }
+      },
+    );
+  }
   /// Handles calendar selection when "Custom Range" is chosen
   Future<void> _selectCustomDateRange(BuildContext context) async {
     final now = DateTime.now();
@@ -82,6 +117,24 @@ class _RevenueGraphState extends State<RevenueGraph> {
     );
 
     if (pickedRange != null) {
+      // Validate that the selected range does not exceed 7 days
+      final int differenceInDays = pickedRange.end.difference(pickedRange.start).inDays;
+
+      if (differenceInDays > 7) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Custom range cannot exceed a maximum of 7 days.",style: TextStyle(color: Colors.white),),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        return; // Reject selection and keep previous state
+      }
+
       setState(() {
         _customRange = pickedRange;
         _selectedFilter = GraphFilter.custom;
@@ -99,7 +152,7 @@ class _RevenueGraphState extends State<RevenueGraph> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filteredSales = _filterSales();
 
     // 1. Sort Filtered Sales by Time (Earliest to Latest)
@@ -124,63 +177,35 @@ class _RevenueGraphState extends State<RevenueGraph> {
       children: [
         // --- Filter Dropdown Header Row ---
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          padding: EdgeInsets.symmetric(horizontal: 1.w, vertical: 0.5.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<GraphFilter>(
-                    value: _selectedFilter,
-                    isDense: true,
-                    icon: const Icon(Icons.calendar_today_rounded, size: 16),
-                    onChanged: (GraphFilter? newValue) {
-                      if (newValue == GraphFilter.custom) {
-                        _selectCustomDateRange(context);
-                      } else if (newValue != null) {
-                        setState(() {
-                          _selectedFilter = newValue;
-                        });
-                      }
-                    },
-                    items: [
-                      const DropdownMenuItem(
-                        value: GraphFilter.today,
-                        child: Text("Today"),
-                      ),
-                      const DropdownMenuItem(
-                        value: GraphFilter.last7Days,
-                        child: Text("Last 7 Days"),
-                      ),
-                      const DropdownMenuItem(
-                        value: GraphFilter.last30Days,
-                        child: Text("Last 30 Days"),
-                      ),
-                      DropdownMenuItem(
-                        value: GraphFilter.custom,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _customRange == null
-                                  ? "Custom Range"
-                                  : "${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}",
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip("Today", GraphFilter.today, Icons.today_rounded),
+                    SizedBox(width: 2.w),
+                    _buildFilterChip("Last 7 Days", GraphFilter.last7Days, Icons.date_range_rounded),
+                    SizedBox(width: 2.w),
+                    _buildFilterChip("Custom", GraphFilter.custom, Icons.tune_rounded),
+                  ],
                 ),
               ),
+
+              // Active Custom Range Subtitle Indicator
+              if (_selectedFilter == GraphFilter.custom && _customRange != null) ...[
+                SizedBox(height: 0.6.h),
+                Text(
+                  "Range: ${DateFormat('dd MMM').format(_customRange!.start)} - ${DateFormat('dd MMM').format(_customRange!.end)}",
+                  style: TextStyle(
+                    fontSize: 13.5.sp,
+                    color: isDark ? Colors.white60 : Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

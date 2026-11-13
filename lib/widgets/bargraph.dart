@@ -6,7 +6,6 @@ import 'package:sizer/sizer.dart';
 import 'package:smart_inventory/main.dart'; // Contains 'formatter'
 import 'package:smart_inventory/services/filters.dart';
 
-
 class ProfitBarChart extends StatefulWidget {
   final List<Map<String, dynamic>> sales;
 
@@ -37,7 +36,6 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
       _processChartData();
     }
   }
-
   /// Processes sales into revenue & cost data buckets according to the selected filter
   void _processChartData() {
     Map<String, Map<String, double>> dailyData = {};
@@ -50,12 +48,11 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     switch (_selectedFilter) {
       case GraphFilter.today:
         startDate = today;
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case GraphFilter.last7Days:
         startDate = today.subtract(const Duration(days: 6));
-        break;
-      case GraphFilter.last30Days:
-        startDate = today.subtract(const Duration(days: 29));
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case GraphFilter.custom:
         if (_customRange != null) {
@@ -74,6 +71,7 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
           );
         } else {
           startDate = today.subtract(const Duration(days: 6));
+          endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         }
         break;
     }
@@ -89,7 +87,7 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
         dailyData[key] = {'rev': 0.0, 'cost': 0.0};
       }
     } else {
-      // Daily buckets for range views
+      // Daily buckets for range views (7D, 30D, This Month, Last Month, Custom)
       for (int i = 0; i < totalDays; i++) {
         DateTime d = startDate.add(Duration(days: i));
         String dateKey = DateFormat('dd/MM').format(d);
@@ -168,6 +166,23 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     );
 
     if (pickedRange != null) {
+      final int differenceInDays = pickedRange.end.difference(pickedRange.start).inDays;
+
+      if (differenceInDays > 7) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Custom range cannot exceed a maximum of 7 days.",style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        return; // Reject range and keep previous state
+      }
+
       setState(() {
         _customRange = pickedRange;
         _selectedFilter = GraphFilter.custom;
@@ -176,77 +191,105 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
     }
   }
 
+  Widget _buildFilterChip(String label, GraphFilter filterValue, IconData icon) {
+    final isSelected = _selectedFilter == filterValue;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ChoiceChip(
+      label: Text(label),
+      avatar: Icon(
+        icon,
+        size: 16.sp,
+        color: isSelected ? colorScheme.primary : (isDark ? Colors.white70 : Colors.grey[700]),
+      ),
+      selected: isSelected,
+      selectedColor: colorScheme.primary.withValues(alpha: 0.15),
+      backgroundColor: Theme.of(context).cardColor,
+      labelStyle: TextStyle(
+        fontSize: 15.sp,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? colorScheme.primary : (isDark ? Colors.white70 : Colors.grey[800]),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isSelected ? colorScheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+        ),
+      ),
+      onSelected: (selected) async {
+        if (selected) {
+          if (filterValue == GraphFilter.custom) {
+            await _selectCustomDateRange(context);
+            _processChartData();
+          } else {
+            setState(() {
+              _selectedFilter = filterValue;
+              _processChartData();
+            });
+          }
+        }
+      },
+    );
+  }
+
+  @override
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Dynamically adjust bar width and label spacing depending on array density
     final double barWidth =
     _labels.length > 20 ? 4 : (_labels.length > 10 ? 7 : 12);
     final int labelStep = _labels.length > 15 ? (_labels.length ~/ 5) : 1;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Filter Dropdown Header Row ---
+        // --- Header Title ---
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0,vertical: 14.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+          child: Text(
+            "Weekly Performance",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17.sp,
+              color: colorScheme.onSurface,
+            ),
+          ),
+        ),
+
+        // --- Modern Horizontal Filter Chips Row ---
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Weekly Performance",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17.sp,
-                  color: colorScheme.onSurface,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip("Today", GraphFilter.today, Icons.today_rounded),
+                    SizedBox(width: 2.w),
+                    _buildFilterChip("Last 7 Days", GraphFilter.last7Days, Icons.date_range_rounded),
+                    SizedBox(width: 2.w),
+                    _buildFilterChip("Custom", GraphFilter.custom, Icons.tune_rounded),
+                  ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
+
+              // Active Custom Range Subtitle Indicator
+              if (_selectedFilter == GraphFilter.custom && _customRange != null) ...[
+                SizedBox(height: 0.6.h),
+                Text(
+                  "Range: ${DateFormat('dd MMM').format(_customRange!.start)} - ${DateFormat('dd MMM').format(_customRange!.end)}",
+                  style: TextStyle(
+                    fontSize: 13.5.sp,
+                    color: isDark ? Colors.white60 : Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<GraphFilter>(
-                    value: _selectedFilter,
-                    isDense: true,
-                    icon: const Icon(Icons.calendar_today_rounded, size: 16),
-                    onChanged: (GraphFilter? newValue) {
-                      if (newValue == GraphFilter.custom) {
-                        _selectCustomDateRange(context);
-                      } else if (newValue != null) {
-                        setState(() {
-                          _selectedFilter = newValue;
-                          _processChartData();
-                        });
-                      }
-                    },
-                    items: [
-                      const DropdownMenuItem(
-                        value: GraphFilter.today,
-                        child: Text("Today"),
-                      ),
-                      const DropdownMenuItem(
-                        value: GraphFilter.last7Days,
-                        child: Text("Last 7 Days"),
-                      ),
-                      DropdownMenuItem(
-                        value: GraphFilter.custom,
-                        child: Text(
-                          _customRange == null
-                              ? "Custom Range"
-                              : "${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}",
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
         ),
@@ -286,9 +329,7 @@ class _ProfitBarChartState extends State<ProfitBarChart> {
                       if (index < 0 || index >= _labels.length) {
                         return const SizedBox();
                       }
-                      // Skip crowded labels when date range is large
-                      if (index % labelStep != 0 &&
-                          index != _labels.length - 1) {
+                      if (index % labelStep != 0 && index != _labels.length - 1) {
                         return const SizedBox();
                       }
 
@@ -553,9 +594,50 @@ class _PeriodBreakdownWidgetState extends State<ProfitBreakdownWidget> {
     );
   }
 
+  Widget _buildBreakdownChip(String label, BreakdownFilter filterValue, IconData icon) {
+    final isSelected = _selectedFilter == filterValue;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ChoiceChip(
+      label: Text(label),
+      avatar: Icon(
+        icon,
+        size: 16.sp,
+        color: isSelected ? colorScheme.primary : (isDark ? Colors.white70 : Colors.grey[700]),
+      ),
+      selected: isSelected,
+      selectedColor: colorScheme.primary.withValues(alpha: 0.15),
+      backgroundColor: Theme.of(context).cardColor,
+      labelStyle: TextStyle(
+        fontSize: 15.sp,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? colorScheme.primary : (isDark ? Colors.white70 : Colors.grey[800]),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+          color: isSelected ? colorScheme.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+        ),
+      ),
+      onSelected: (selected) async {
+        if (selected) {
+          if (filterValue == BreakdownFilter.custom) {
+            await _selectCustomDateRange(context);
+          } else {
+            setState(() {
+              _selectedFilter = filterValue;
+            });
+          }
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final metrics = _calculateMetrics();
     final double periodRevenue = metrics['revenue']!;
     final double periodCost = metrics['cost']!;
@@ -565,68 +647,47 @@ class _PeriodBreakdownWidgetState extends State<ProfitBreakdownWidget> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Filter Dropdown Row ---
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Profit Breakdown",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 17.sp,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<BreakdownFilter>(
-                    value: _selectedFilter,
-                    isDense: true,
-                    icon: const Icon(Icons.calendar_today_rounded, size: 16),
-                    onChanged: (BreakdownFilter? newValue) {
-                      if (newValue == BreakdownFilter.custom) {
-                        _selectCustomDateRange(context);
-                      } else if (newValue != null) {
-                        setState(() {
-                          _selectedFilter = newValue;
-                        });
-                      }
-                    },
-                    items: [
-                      const DropdownMenuItem(
-                        value: BreakdownFilter.thisMonth,
-                        child: Text("This Month"),
-                      ),
-                      const DropdownMenuItem(
-                        value: BreakdownFilter.lastMonth,
-                        child: Text("Last Month"),
-                      ),
-                      const DropdownMenuItem(
-                        value: BreakdownFilter.thisYear,
-                        child: Text("This Year"),
-                      ),
-                      DropdownMenuItem(
-                        value: BreakdownFilter.custom,
-                        child: Text(_customRange == null
-                            ? "Custom Range"
-                            : "${DateFormat('dd/MM').format(_customRange!.start)} - ${DateFormat('dd/MM').format(_customRange!.end)}"),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+          // --- Header Title ---
+          Text(
+            "Profit Breakdown",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17.sp,
+              color: colorScheme.onSurface,
+            ),
           ),
+          SizedBox(height: 1.h),
+
+          // --- Modern Horizontal Filter Chips Row ---
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildBreakdownChip("This Month", BreakdownFilter.thisMonth, Icons.calendar_view_month_rounded),
+                SizedBox(width: 2.w),
+                _buildBreakdownChip("Last Month", BreakdownFilter.lastMonth, Icons.history_rounded),
+                SizedBox(width: 2.w),
+                _buildBreakdownChip("This Year", BreakdownFilter.thisYear, Icons.calendar_today_rounded),
+                SizedBox(width: 2.w),
+                _buildBreakdownChip("Custom", BreakdownFilter.custom, Icons.tune_rounded),
+              ],
+            ),
+          ),
+
+          if (_selectedFilter == BreakdownFilter.custom && _customRange != null) ...[
+            SizedBox(height: 0.6.h),
+            Text(
+              "Range: ${DateFormat('dd MMM').format(_customRange!.start)} - ${DateFormat('dd MMM').format(_customRange!.end)}",
+              style: TextStyle(
+                fontSize: 13.5.sp,
+                color: isDark ? Colors.white60 : Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+
           const SizedBox(height: 12),
 
           // --- Today's Metrics Tile ---
