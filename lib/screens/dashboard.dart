@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 import 'package:smart_inventory/screens/setting_screen.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:printing/printing.dart';
+import 'package:smart_inventory/screens/smart_analytics_ui.dart';
 import 'package:smart_inventory/widgets/bargraph.dart';
 import 'package:smart_inventory/widgets/revenue_graph.dart';
 import 'package:smart_inventory/services/pdf_generate.dart';
@@ -548,6 +549,16 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           backgroundColor: appBarTheme.backgroundColor,
           iconTheme: appBarTheme.iconTheme,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.auto_graph_rounded),
+              tooltip: 'Smart Restock & Analytics',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context)=> const SmartRestockAnalyticsPage())
+                );
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.settings, color: Colors.white),
               tooltip: 'Settings',

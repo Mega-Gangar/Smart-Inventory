@@ -51,3 +51,6 @@ firebase.json
 
 #Update Configuration
 lib/services/update_services.dart
+
+#Database Sync
+lib/database/database_sync.dart
