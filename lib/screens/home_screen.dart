@@ -48,8 +48,8 @@ class SmartBillingApp extends StatelessWidget {
                 return const IconThemeData(color: Colors.black54);
               }),
               labelTextStyle: WidgetStateProperty.all(
-                const TextStyle(
-                  fontSize: 12,
+                TextStyle(
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
@@ -75,7 +75,7 @@ class SmartBillingApp extends StatelessWidget {
             inputDecorationTheme: InputDecorationTheme(
               hintStyle: TextStyle(
                 color: Colors.white.withValues(alpha: 0.4),
-                fontSize: 14,
+                fontSize: 14.sp,
               ),
             ),
 
@@ -89,8 +89,8 @@ class SmartBillingApp extends StatelessWidget {
                 return const IconThemeData(color: Colors.white54);
               }),
               labelTextStyle: WidgetStateProperty.all(
-                const TextStyle(
-                  fontSize: 12,
+                TextStyle(
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),

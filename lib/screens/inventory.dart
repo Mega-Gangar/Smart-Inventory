@@ -325,11 +325,12 @@ class InventoryPageState extends RefreshableState<InventoryPage>
                 ),
                 onChanged: (value) => _runFilter(value),
               )
-            : const Text(
+            : Text(
                 "Inventory Management",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
+                  fontSize: 20.sp
                 ),
               ),
         backgroundColor: appBarTheme.backgroundColor,

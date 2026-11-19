@@ -288,7 +288,7 @@ class _SmartRestockAnalyticsPageState extends State<SmartRestockAnalyticsPage> {
                         ],
                       ),
                     ),
-                    const Divider(height: 1, thickness: 1),
+                    Divider(height: 0.2.h, thickness: 0.15.h),
                     Expanded(
                       child: RefreshIndicator(
                         onRefresh: () async {

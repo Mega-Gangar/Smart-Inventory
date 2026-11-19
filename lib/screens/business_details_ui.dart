@@ -46,7 +46,7 @@ class BusinessDetailsUi {
         title: Row(
           children: [
             Icon(Icons.business_center, color: isDark ? Colors.white : Colors.indigo),
-            const SizedBox(width: 10),
+            SizedBox(width: 2.5.w),
             Text(
               "Billing Profile",
               style: TextStyle(
@@ -127,7 +127,7 @@ class BusinessDetailsUi {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
               elevation: 0,
             ),
             onPressed: () async {

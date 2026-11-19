@@ -83,14 +83,12 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       items = jsonDecode(sale['items']);
     }
 
-    // Identify current theme state
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      // Ensure the background of the sheet matches the theme
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -113,7 +111,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close, size: 18.sp),
                   onPressed: () => Navigator.pop(ctx),
                 ),
               ],
@@ -126,25 +124,27 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   if (items.isEmpty)
                     Text(
                       "No item details recorded.",
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ...items.map(
-                    (item) => ListTile(
+                        (item) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(
                         item['name'],
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15.sp,
-                          color: colorScheme.onSurface, // Adaptive text
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       subtitle: Text(
                         "${item['qty']} x ${formatter.format(item['price'])}",
                         style: TextStyle(
                           fontSize: 14.sp,
-                          color: colorScheme
-                              .onSurfaceVariant, // Muted adaptive text
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                       trailing: Text(
@@ -190,16 +190,20 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.indigo,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 1.5.h),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     onPressed: () => PdfHelper.generateAndPrintReceipt(sale),
-                    icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
-                    label: const Text(
+                    icon: Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.white,
+                      size: 16.sp,
+                    ),
+                    label: Text(
                       "PRINT",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
                     ),
                   ),
                 ),
@@ -207,11 +211,10 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      // Green is a good "action" color, but we ensure it pops in both modes
                       backgroundColor: isDark
                           ? Colors.green[600]
                           : Colors.green[800],
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 1.5.h),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -225,10 +228,10 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                         filename: 'Receipt_${sale['id']}.pdf',
                       );
                     },
-                    icon: const Icon(Icons.share, color: Colors.white),
-                    label: const Text(
+                    icon: Icon(Icons.share, color: Colors.white, size: 16.sp),
+                    label: Text(
                       "SHARE",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white, fontSize: 14.sp),
                     ),
                   ),
                 ),
@@ -254,7 +257,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
           "No sales recorded yet.",
           style: TextStyle(
             fontSize: 16.sp,
-            // Adaptive muted text
             color: colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
           ),
@@ -264,7 +266,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
     double revenue = _sales.fold(
       0,
-      (sum, item) => sum + (item['total'] as num).toDouble(),
+          (sum, item) => sum + (item['total'] as num).toDouble(),
     );
 
     return RefreshIndicator(
@@ -272,15 +274,13 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
         _searchController.clear();
         await _fetchSales();
       },
-      // Use primary color for the refresh spinner
       color: colorScheme.primary,
       child: SingleChildScrollView(
         child: Column(
           children: [
             // Revenue Card
             Card(
-              margin: const EdgeInsets.all(16),
-              // Use a subtle indigo tinted background for both modes
+              margin: EdgeInsets.all(4.w),
               color: isDark
                   ? Colors.indigo.withValues(alpha: 0.15)
                   : Colors.indigo[50],
@@ -294,6 +294,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                     title: Text(
                       "Total Revenue",
                       style: TextStyle(
+                        fontSize: 15.sp,
                         fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : Colors.indigo,
                       ),
@@ -312,7 +313,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                             ? Icons.keyboard_arrow_up
                             : Icons.keyboard_arrow_down,
                         color: Colors.indigo,
-                        size: 30,
+                        size: 22.sp,
                       ),
                       onPressed: () =>
                           setState(() => _isGraphVisible = !_isGraphVisible),
@@ -325,29 +326,30 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
             // Search Bar
             Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+              padding: EdgeInsets.fromLTRB(4.w, 0, 4.w, 2.h),
               child: TextField(
                 controller: _searchController,
+                style: TextStyle(fontSize: 15.sp),
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search, size: 18.sp),
                   hintText: "Search Sale ID...",
+                  hintStyle: TextStyle(fontSize: 16.sp),
                   filled: true,
-                  // Use adaptive background for the search field
                   fillColor: isDark
                       ? colorScheme.surfaceContainer
                       : Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+                  contentPadding: EdgeInsets.symmetric(vertical: 1.3.h),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15.0),
                     borderSide: BorderSide.none,
                   ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                          },
-                        )
+                    icon: Icon(Icons.clear, size: 17.sp),
+                    onPressed: () {
+                      _searchController.clear();
+                    },
+                  )
                       : null,
                 ),
               ),
@@ -362,7 +364,7 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
               ListView.separated(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(horizontal: 4.w),
                 itemCount: _filteredSales.length,
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, i) {
@@ -374,7 +376,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
                       child: Text(
                         "Sale #${sale['id']}",
                         style: TextStyle(
-                          // Keep indigo for links/actions
                           color: isDark ? Colors.white : Colors.indigo,
                           decoration: TextDecoration.underline,
                           fontWeight: FontWeight.bold,
@@ -405,7 +406,6 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       ),
     );
   }
-
   // Helper for empty states
   Widget _emptyState(String text) {
     return Padding(
@@ -423,46 +423,117 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
   }
 
   void _confirmRefund(BuildContext context, Map<String, dynamic> sale) {
-    // Define theme variables locally for this function
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: colorScheme.surface,
+        backgroundColor: isDark ? colorScheme.surfaceContainer : Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          "Confirm Refund?",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
-          ),
+        titlePadding: EdgeInsets.fromLTRB(5.w, 2.5.h, 5.w, 1.h),
+        contentPadding: EdgeInsets.fromLTRB(5.w, 0.5.h, 5.w, 1.5.h),
+        actionsPadding: EdgeInsets.fromLTRB(4.w, 0.5.h, 4.w, 2.h),
+        title: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(2.w),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: isDark ? 0.2 : 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.assignment_return_rounded,
+                color: Colors.red.shade600,
+                size: 18.sp,
+              ),
+            ),
+            SizedBox(width: 3.w),
+            Expanded(
+              child: Text(
+                "Confirm Refund?",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20.sp,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
         ),
-        content: Text(
-          "Do you want to return Sale #${sale['id']}? This will add the items back to stock and remove the revenue.",
-          style: TextStyle(color: colorScheme.onSurfaceVariant),
-        ),
-        actionsPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Process a return for Sale #${sale['id']}?",
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 17.sp,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            SizedBox(height: 1.2.h),
+            Container(
+              padding: EdgeInsets.all(3.w),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.red.withValues(alpha: 0.35)
+                    : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.red.withValues(alpha: isDark ? 0.35 : 0.2),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 14.sp,
+                    color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                  ),
+                  SizedBox(width: 2.5.w),
+                  Expanded(
+                    child: Text(
+                      "Items will be restored to inventory and this sale's revenue will be deducted.",
+                      style: TextStyle(
+                        fontSize: 13.5.sp,
+                        height: 1.35,
+                        color: isDark ? Colors.red.shade200 : Colors.red.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: Text(
               "CANCEL",
               style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.grey[600],
+                fontWeight: FontWeight.w600,
+                fontSize: 14.5.sp,
               ),
             ),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              // Use semantic error color for the refund action
-              backgroundColor: Colors.red,
-              foregroundColor: colorScheme.onError,
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
               elevation: 0,
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -477,20 +548,33 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text("Sale returned successfully!"),
-                  backgroundColor: Colors.green,
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 2.5.w),
+                      Expanded(
+                        child: Text(
+                          "Sale #${sale['id']} returned and stock updated.",
+                          style: TextStyle(fontSize: 11.5.sp, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green.shade700,
                   behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.all(3.w),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               );
             },
-            child: Text(
+            icon: Icon(Icons.check_rounded, size: 14.sp),
+            label: Text(
               "CONFIRM RETURN",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.indigo,
+                fontSize: 15.sp,
               ),
             ),
           ),
@@ -508,32 +592,28 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(4.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Adapted Graph Container
           Card(
             elevation: 0,
-            // Use surfaceContainer for a subtle lift in Dark Mode
             color: isDark ? colorScheme.surfaceContainer : Colors.grey[50],
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
             child: ProfitBarChart(sales: _sales),
           ),
-          const Divider(height: 30, thickness: 1),
-          ProfitBreakdownWidget(sales: _sales), //available in /widgets/bargraph.dart
+          Divider(height: 3.5.h, thickness: 1),
+          ProfitBreakdownWidget(sales: _sales),
         ],
       ),
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    // Detect theme brightness and color scheme
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final appBarTheme = Theme.of(context).appBarTheme;
@@ -542,25 +622,31 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             "Profit & Analytics",
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 20.sp,
+            ),
           ),
           backgroundColor: appBarTheme.backgroundColor,
           iconTheme: appBarTheme.iconTheme,
           actions: [
             IconButton(
-              icon: const Icon(Icons.auto_graph_rounded),
+              icon: Icon(Icons.auto_graph_rounded, size: 20.sp),
               tooltip: 'Smart Restock & Analytics',
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context)=> const SmartRestockAnalyticsPage())
+                  MaterialPageRoute(
+                    builder: (context) => const SmartRestockAnalyticsPage(),
+                  ),
                 );
               },
             ),
             IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white),
+              icon: Icon(Icons.settings, color: Colors.white, size: 22.sp),
               tooltip: 'Settings',
               onPressed: () {
                 Navigator.push(
@@ -571,19 +657,24 @@ class _DashboardPageState extends RefreshableState<DashboardPage>
             ),
           ],
           bottom: TabBar(
-            // Use a bright indicator that pops against the indigo app bar
             indicatorColor: isDark ? colorScheme.secondary : Colors.white,
             indicatorWeight: 3,
             labelColor: Colors.white,
-            // Lighter grey for unselected tabs in both modes for readability
+            labelStyle: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: TextStyle(fontSize: 14.sp),
             unselectedLabelColor: Colors.white.withValues(alpha: 0.6),
-            tabs: const [
-              Tab(icon: Icon(Icons.show_chart), text: "Sales Summary"),
-              Tab(icon: Icon(Icons.currency_rupee), text: "Profits/Losses"),
+            tabs: [
+              Tab(
+                icon: Icon(Icons.show_chart, size: 18.sp),
+                text: "Sales Summary",
+              ),
+              Tab(
+                icon: Icon(Icons.currency_rupee, size: 18.sp),
+                text: "Profits/Losses",
+              ),
             ],
           ),
         ),
-        // Ensure the background of the TabBarView matches the theme
         body: Container(
           color: Theme.of(context).scaffoldBackgroundColor,
           child: TabBarView(

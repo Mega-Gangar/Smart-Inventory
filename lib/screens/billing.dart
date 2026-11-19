@@ -123,7 +123,7 @@ class BillingPageState extends RefreshableState<BillingPage>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
-              margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
+              margin: EdgeInsets.only(bottom: 15.h, left: 4.w, right: 4.w)
             ),
           );
         }
@@ -170,7 +170,7 @@ class BillingPageState extends RefreshableState<BillingPage>
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.only(bottom: 132, left: 16, right: 16),
+        margin: EdgeInsets.only(bottom: 15.h, left: 4.w, right: 4.w)
       ),
     );
   }
@@ -515,11 +515,12 @@ class BillingPageState extends RefreshableState<BillingPage>
                 ),
                 onChanged: (value) => _runFilter(value),
               )
-            : const Text(
+            : Text(
                 "New Sale",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
+                  fontSize: 20.sp
                 ),
               ),
         // Keep indigo for AppBar to maintain branding in both modes
@@ -759,7 +760,7 @@ class BillingPageState extends RefreshableState<BillingPage>
                       disabledForegroundColor: isDark
                           ? Colors.grey[600]
                           : Colors.grey[500],
-                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      padding: EdgeInsets.symmetric(vertical: 1.8.h),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
