@@ -5,7 +5,7 @@ import 'package:sizer/sizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateService {
-  static const String currentVersion = "1.1.7";
+  static const String currentVersion = "1.2.0";
   static const String githubUser = "Mega-Gangar";
   static const String repoName = "Smart-Inventory";
 
